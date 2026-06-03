@@ -19,5 +19,5 @@ services:
     env_file:
       - .env
     environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     restart: unless-stopped
