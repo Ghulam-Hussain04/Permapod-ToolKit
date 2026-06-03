@@ -6,8 +6,8 @@
 
 import { state }                           from '/src/js/state.js';
 import { getKey, saveInlineKey,
-         OPENROUTER_ENDPOINT,
-         TEXT_MODEL, VISION_MODEL }        from '/src/js/config.js';
+         GROQ_ENDPOINT,
+         TEXT_MODEL, VISION_MODEL } from '/src/js/config.js';
 import { SYSTEM_PROMPT,
          buildPostUserMessage,
          buildReplyUserMessage,
@@ -91,34 +91,32 @@ export async function gen(mode) {
 
   /* ── Send to OpenRouter ── */
   try {
-    const res = await fetch(OPENROUTER_ENDPOINT, {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + apiKey,
-        'HTTP-Referer':  'https://permapod.xyz',
-        'X-Title':       'Permapod Content Manager',
-      },
-      body: JSON.stringify({
-        model:       modelToUse,
-        max_tokens:  350,
-        temperature: 0.9,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages,
-        ],
-      }),
-    });
+    const res = await fetch(GROQ_ENDPOINT, {
+  method:  'POST',
+  headers: {
+    'Content-Type':  'application/json',
+    'Authorization': 'Bearer ' + apiKey,
+  },
+  body: JSON.stringify({
+    model:       modelToUse,
+    max_tokens:  350,
+    temperature: 0.9,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages,
+    ],
+  }),
+});
 
     const data = await res.json();
 
     if (!res.ok) {
       const errMsg  = data?.error?.message || 'Unknown error';
       const errCode = res.status;
-      if      (errCode === 401) outText.textContent = 'Invalid API key. Check your OpenRouter key.';
-      else if (errCode === 429) outText.textContent = 'Rate limit hit. Free tier: 50 req/day (1000/day after $10 top-up at openrouter.ai).';
+      if (errCode === 401) outText.textContent = 'Invalid API key. Check your Groq key.';
+      else if (errCode === 429) outText.textContent = 'Rate limit hit. Free tier: 50 req/day (1000/day after $10 top-up at groq.com).';
       else if (errCode === 503) outText.textContent = 'Model busy. Wait 30 seconds and try again.';
-      else if (errCode === 404) outText.textContent = `Model not found: ${modelToUse}. Check openrouter.ai/models for available free models.`;
+      else if (errCode === 404) outText.textContent = `Model not found: ${modelToUse}. Check groq.com/models for available free models.`;
       else                      outText.textContent = `Error ${errCode}: ${errMsg}`;
       outEl.className = 'output show';
       btn.disabled    = false;
