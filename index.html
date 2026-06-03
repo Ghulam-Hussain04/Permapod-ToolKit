@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permapod X Content Manager</title>
+  <script>
+    window.PERMAPOD_API_KEY = '%%OPENROUTER_API_KEY%%';
+  </script>
+  <link rel="stylesheet" href="src/css/styles.css">
+</head>
+<body>
+
+  <div class="wrap">
+    <nav class="nav">
+      <button class="nt a-green" id="tab-post" onclick="sw('post')">✏️ New post</button>
+      <button class="nt" id="tab-reply" onclick="sw('reply')">💬 Reply</button>
+      <button class="nt" id="tab-repost" onclick="sw('repost')">🔁 Repost + comment</button>
+      <button class="nt" id="tab-trend" onclick="sw('trend')">🔥 Trend / Image</button>
+      <button class="nt" id="tab-rules" onclick="sw('rules')">🛡️ Brand rules</button>
+    </nav>
+
+    <div class="panel active" id="panel-post">
+      <div class="sec">
+        <div class="sl">📅 Weekly content mix</div>
+        <div class="week-strip">
+          <button class="db" onclick="selDay(this,'Market Thesis','protocol','Onchain Lending')"><span class="dn">Mon</span><span class="dt">Market</span></button>
+          <button class="db" onclick="selDay(this,'Product Education','protocol','Product Education')"><span class="dn">Tue</span><span class="dt">Product</span></button>
+          <button class="db" onclick="selDay(this,'Blip Blop Post','blipblop','Blip Blop')"><span class="dn">Wed</span><span class="dt">Blip Blop</span></button>
+          <button class="db" onclick="selDay(this,'Ecosystem','protocol','ZIGChain Ecosystem')"><span class="dn">Thu</span><span class="dt">Ecosystem</span></button>
+          <button class="db" onclick="selDay(this,'Benchmark','protocol','Benchmark & Performance')"><span class="dn">Fri</span><span class="dt">Benchmark</span></button>
+          <button class="db" onclick="selDay(this,'Community','blipblop','Blip Blop')"><span class="dn">Sat</span><span class="dt">Community</span></button>
+          <button class="db" onclick="selDay(this,'Narrative','protocol','Credit Infrastructure')"><span class="dn">Sun</span><span class="dt">Narrative</span></button>
+        </div>
+        <div id="day-info" class="infopill" style="display:none">ℹ️ <span id="day-info-text"></span></div>
+      </div>
+      <div class="sec">
+        <div class="sl">🎙️ Brand voice</div>
+        <div class="vg">
+          <div class="vc sel-g" id="pvc-protocol" onclick="setV('post','protocol')"><div class="vn">Protocol voice</div><div class="vd">Clear, credible, product-led</div><div class="vt">calm · institutional · non-hype</div></div>
+          <div class="vc" id="pvc-blipblop" onclick="setV('post','blipblop')"><div class="vn">Blip Blop voice</div><div class="vd">Playful mascot, community</div><div class="vt">curious · warm · meme-native</div></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">📌 Content pillar</div>
+        <div class="pills" id="post-pills">
+          <button class="pill sg" onclick="setP('post',this,'Onchain Lending')">Onchain lending</button>
+          <button class="pill" onclick="setP('post',this,'Stablecoin Utility')">Stablecoin utility</button>
+          <button class="pill" onclick="setP('post',this,'Lending Demand')">Lending demand</button>
+          <button class="pill" onclick="setP('post',this,'Credit Infrastructure')">Credit infrastructure</button>
+          <button class="pill" onclick="setP('post',this,'ZIGChain Ecosystem')">ZIGChain ecosystem</button>
+          <button class="pill" onclick="setP('post',this,'Product Education')">Product education</button>
+          <button class="pill" onclick="setP('post',this,'Benchmark & Performance')">Benchmark / metric</button>
+          <button class="pill" onclick="setP('post',this,'Blip Blop')">Blip Blop</button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">🪝 Opening hook <span class="ai-badge">AI generates freely</span></div>
+        <div class="hook-toggle-row">
+          <button class="hook-tog active" id="hook-ai-btn" onclick="setHookMode('ai')">AI picks freely</button>
+          <button class="hook-tog" id="hook-pick-btn" onclick="setHookMode('pick')">Force specific hook</button>
+        </div>
+        <div id="hook-list" style="display:none;margin-top:8px">
+          <div class="hbox">
+            <div class="hr2"><input type="radio" name="hook" class="hradio" value="Idle capital is a missed opportunity." onchange="state.hook=this.value"><label class="hl">Idle capital is a missed opportunity.</label></div>
+            <div class="hr2"><input type="radio" name="hook" class="hradio" value="Stablecoins deserve better utility." onchange="state.hook=this.value"><label class="hl">Stablecoins deserve better utility.</label></div>
+            <div class="hr2"><input type="radio" name="hook" class="hradio" value="The APY matters. The source matters more." onchange="state.hook=this.value"><label class="hl">The APY matters. The source matters more.</label></div>
+            <div class="hr2"><input type="radio" name="hook" class="hradio" value="Productive capital builds stronger markets." onchange="state.hook=this.value"><label class="hl">Productive capital builds stronger markets.</label></div>
+            <div class="hr2"><input type="radio" name="hook" class="hradio" value="Onchain lending is becoming a core financial primitive." onchange="state.hook=this.value"><label class="hl">Onchain lending is becoming a core financial primitive.</label></div>
+          </div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">💬 Closing line <span class="ai-badge">AI generates freely</span></div>
+        <div class="hook-toggle-row">
+          <button class="hook-tog active" id="closing-ai-btn" onclick="setClosingMode('ai')">AI picks freely</button>
+          <button class="hook-tog" id="closing-pick-btn" onclick="setClosingMode('pick')">Force specific closing</button>
+        </div>
+        <div id="closing-list" style="display:none;margin-top:8px">
+          <div class="hbox">
+            <div class="hr2"><input type="radio" name="closing" class="hradio" value="That is the market Permapod is building." onchange="state.closing=this.value"><label class="hl">That is the market Permapod is building.</label></div>
+            <div class="hr2"><input type="radio" name="closing" class="hradio" value="Capital should be productive." onchange="state.closing=this.value"><label class="hl">Capital should be productive.</label></div>
+            <div class="hr2"><input type="radio" name="closing" class="hradio" value="Onchain lending is only getting started." onchange="state.closing=this.value"><label class="hl">Onchain lending is only getting started.</label></div>
+          </div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">📝 Topic / context <span class="opt-note">(optional)</span></div>
+        <textarea id="post-ctx" placeholder="e.g. USDC sitting idle, or a specific angle you want covered..."></textarea>
+      </div>
+      <button class="gen-btn btn-g" id="btn-post" onclick="gen('post')">✨ Generate post</button>
+      <div class="output" id="out-post">
+        <div class="oh"><span class="tag tg" id="tag-post"></span><div class="oacts"><button class="ibtn" onclick="gen('post')">↺ Regenerate</button><button class="ibtn" id="cp-post" onclick="cp('otext-post','cp-post')">⎘ Copy</button></div></div>
+        <div class="otext" id="otext-post"></div>
+        <div class="ometa"><span class="ci" id="cc-post"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-reply">
+      <div class="sec">
+        <div class="sl">🗂️ Reply bucket</div>
+        <div class="pills">
+          <button class="pill sb" id="rb-s" onclick="setRB(this,'stablecoin')">Under stablecoin posts</button>
+          <button class="pill" id="rb-d" onclick="setRB(this,'defi')">Under DeFi yield posts</button>
+          <button class="pill" id="rb-z" onclick="setRB(this,'zig')">Under ZIGChain posts</button>
+          <button class="pill" id="rb-m" onclick="setRB(this,'mention')">Under Permapod mentions</button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">🎙️ Brand voice</div>
+        <div class="vg">
+          <div class="vc sel-b" id="rvc-protocol" onclick="setV('reply','protocol')"><div class="vn">Protocol voice</div><div class="vd">Clear, credible, product-led</div><div class="vt">calm · institutional · non-hype</div></div>
+          <div class="vc" id="rvc-blipblop" onclick="setV('reply','blipblop')"><div class="vn">Blip Blop voice</div><div class="vd">Playful mascot, community</div><div class="vt">curious · warm · meme-native</div></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">🐦 Tweet you're replying to</div>
+        <textarea class="bf" id="reply-tweet" placeholder="Paste the tweet content here..."></textarea>
+      </div>
+      <div class="sec">
+        <div class="sl">📝 Additional context <span class="opt-note">(optional)</span></div>
+        <textarea class="bf" id="reply-ctx" placeholder="Any specific angle for the reply..."></textarea>
+      </div>
+      <button class="gen-btn btn-b" id="btn-reply" onclick="gen('reply')">✨ Generate reply</button>
+      <div class="output" id="out-reply">
+        <div class="oh"><span class="tag tb" id="tag-reply"></span><div class="oacts"><button class="ibtn" onclick="gen('reply')">↺ Regenerate</button><button class="ibtn" id="cp-reply" onclick="cp('otext-reply','cp-reply')">⎘ Copy</button></div></div>
+        <div class="otext" id="otext-reply"></div>
+        <div class="ometa"><span class="ci" id="cc-reply"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-repost">
+      <div class="sec">
+        <div class="sl">🔁 Tweet to repost / quote</div>
+        <textarea class="pf" id="repost-tweet" placeholder="Paste the tweet you want to quote-repost..."></textarea>
+      </div>
+      <div class="sec">
+        <div class="sl">🎙️ Brand voice</div>
+        <div class="vg">
+          <div class="vc sel-p" id="rpvc-protocol" onclick="setV('repost','protocol')"><div class="vn">Protocol voice</div><div class="vd">Clear, credible, product-led</div><div class="vt">calm · institutional · non-hype</div></div>
+          <div class="vc" id="rpvc-blipblop" onclick="setV('repost','blipblop')"><div class="vn">Blip Blop voice</div><div class="vd">Playful mascot, community</div><div class="vt">curious · warm · meme-native</div></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">📌 Content angle</div>
+        <div class="pills" id="repost-pills">
+          <button class="pill sp" onclick="setP('repost',this,'Onchain Lending')">Onchain lending</button>
+          <button class="pill" onclick="setP('repost',this,'Stablecoin Utility')">Stablecoin utility</button>
+          <button class="pill" onclick="setP('repost',this,'Lending Demand')">Lending demand</button>
+          <button class="pill" onclick="setP('repost',this,'Credit Infrastructure')">Credit infrastructure</button>
+          <button class="pill" onclick="setP('repost',this,'ZIGChain Ecosystem')">ZIGChain ecosystem</button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sl">📝 Your take / angle <span class="opt-note">(optional)</span></div>
+        <textarea class="pf" id="repost-ctx" placeholder="What angle should Permapod add when reposting this?..."></textarea>
+      </div>
+      <button class="gen-btn btn-p" id="btn-repost" onclick="gen('repost')">✨ Generate repost comment</button>
+      <div class="output" id="out-repost">
+        <div class="oh"><span class="tag tp" id="tag-repost"></span><div class="oacts"><button class="ibtn" onclick="gen('repost')">↺ Regenerate</button><button class="ibtn" id="cp-repost" onclick="cp('otext-repost','cp-repost')">⎘ Copy</button></div></div>
+        <div class="otext" id="otext-repost"></div>
+        <div class="ometa"><span class="ci" id="cc-repost"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-trend">
+      <div class="sec">
+        <div class="sl">⚙️ Input mode</div>
+        <div class="pills">
+          <button class="pill sg" id="ti-mode-trend" onclick="setTIMode('trend')">📝 Trend text</button>
+          <button class="pill" id="ti-mode-image" onclick="setTIMode('image')">🖼️ Screenshot / image</button>
+        </div>
+      </div>
+
+      <div id="trend-section">
+        <div class="sec">
+          <div class="sl">🔥 Trending topic or tweet</div>
+          <div class="trend-box">
+            <textarea class="af" id="trend-input" placeholder="Paste the trending topic or headline..."></textarea>
+            <div class="trend-examples">
+              <button class="trend-ex" onclick="document.getElementById('trend-input').value='Bitcoin hits new ATH'">Bitcoin ATH</button>
+              <button class="trend-ex" onclick="document.getElementById('trend-input').value='DeFi TVL crosses $100B'">DeFi TVL $100B</button>
+              <button class="trend-ex" onclick="document.getElementById('trend-input').value='stablecoin TVL'">Stablecoin TVL</button>
+              <button class="trend-ex" onclick="document.getElementById('trend-input').value='ZIGChain launch'">ZIGChain launch</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="image-section" style="display:none">
+        <div class="sec">
+          <div class="sl">🖼️ Upload screenshot</div>
+          <div class="img-drop" id="img-drop">
+            <input type="file" id="img-input" accept="image/*" onchange="handleImageUpload(this.files[0])">
+            <img id="img-preview" class="img-preview" style="display:none" alt="Preview">
+            <div id="img-placeholder" class="img-placeholder">
+              <i>🖼️</i>
+              Click or drag a screenshot here
+              <span>PNG, JPG, WEBP supported</span>
+            </div>
+          </div>
+          <button class="ibtn" id="img-clear" style="display:none;margin-top:8px" onclick="clearImg()">✕ Remove image</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sl">🎙️ Brand voice</div>
+        <div class="vg">
+          <div class="vc sel-g" id="tvc-protocol" onclick="setV('trend','protocol')"><div class="vn">Protocol voice</div><div class="vd">Clear, credible, product-led</div><div class="vt">calm · institutional · non-hype</div></div>
+          <div class="vc" id="tvc-blipblop" onclick="setV('trend','blipblop')"><div class="vn">Blip Blop voice</div><div class="vd">Playful mascot, community</div><div class="vt">curious · warm · meme-native</div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sl">📌 Content angle</div>
+        <div class="pills" id="trend-pills">
+          <button class="pill sg" onclick="setP('trend',this,'Onchain Lending')">Onchain lending</button>
+          <button class="pill" onclick="setP('trend',this,'Stablecoin Utility')">Stablecoin utility</button>
+          <button class="pill" onclick="setP('trend',this,'Lending Demand')">Lending demand</button>
+          <button class="pill" onclick="setP('trend',this,'Credit Infrastructure')">Credit infrastructure</button>
+          <button class="pill" onclick="setP('trend',this,'ZIGChain Ecosystem')">ZIGChain ecosystem</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sl">📤 Output type</div>
+        <div class="pills" id="ti-output-pills">
+          <button class="pill sg" onclick="setTIOutput(this,'tweet')">Original tweet</button>
+          <button class="pill" onclick="setTIOutput(this,'reply')">Reply</button>
+          <button class="pill" onclick="setTIOutput(this,'repost')">Repost comment</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sl">📝 Extra context <span class="opt-note">(optional)</span></div>
+        <textarea id="trend-ctx" class="af" placeholder="Additional angle or team context..."></textarea>
+      </div>
+
+      <button class="gen-btn btn-am" id="btn-trend" onclick="gen('trend')">✨ Generate</button>
+      <div class="output" id="out-trend">
+        <div class="oh"><span class="tag tam" id="tag-trend"></span><div class="oacts"><button class="ibtn" onclick="gen('trend')">↺ Regenerate</button><button class="ibtn" id="cp-trend" onclick="cp('otext-trend','cp-trend')">⎘ Copy</button></div></div>
+        <div class="otext" id="otext-trend"></div>
+        <div class="ometa"><span class="ci" id="cc-trend"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-rules">
+      <div class="rgrid">
+        <div class="rcard">
+          <h4>✅ Always say</h4>
+          <ul>
+            <li><span class="doi">·</span>Onchain lending</li>
+            <li><span class="doi">·</span>Credit infrastructure</li>
+            <li><span class="doi">·</span>Stablecoin utility</li>
+            <li><span class="doi">·</span>Lending demand</li>
+            <li><span class="doi">·</span>Productive capital</li>
+            <li><span class="doi">·</span>ZIGChain ecosystem</li>
+            <li><span class="doi">·</span>Capital efficiency</li>
+          </ul>
+        </div>
+        <div class="rcard">
+          <h4><span class="dnti">✕</span> Never say</h4>
+          <ul>
+            <li><span class="dnti">·</span>Guaranteed yield</li>
+            <li><span class="dnti">·</span>Risk-free returns</li>
+            <li><span class="dnti">·</span>Fixed APY (unconfirmed)</li>
+            <li><span class="dnti">·</span>RWA / tokenized equities</li>
+            <li><span class="dnti">·</span>No loss possible</li>
+            <li><span class="dnti">·</span>Collateralized markets live</li>
+            <li><span class="dnti">·</span>Unconfirmed roadmap as live</li>
+          </ul>
+        </div>
+        <div class="rcard">
+          <h4>🪝 Strong hooks</h4>
+          <ul>
+            <li><span class="doi">·</span>Idle capital is a missed opportunity</li>
+            <li><span class="doi">·</span>The APY matters. The source matters more</li>
+            <li><span class="doi">·</span>Capital should work, not wait</li>
+            <li><span class="doi">·</span>Stablecoins deserve better utility</li>
+            <li><span class="doi">·</span>Lending infrastructure matters</li>
+          </ul>
+        </div>
+        <div class="rcard">
+          <h4>💬 Strong closers</h4>
+          <ul>
+            <li><span style="color:var(--b)">·</span>That is the market Permapod is building</li>
+            <li><span style="color:var(--b)">·</span>Capital should be productive</li>
+            <li><span style="color:var(--b)">·</span>Onchain lending is only getting started</li>
+            <li><span style="color:var(--b)">·</span>Stablecoins deserve better markets</li>
+            <li><span style="color:var(--b)">·</span>Permapod is building that layer on ZIGChain</li>
+          </ul>
+        </div>
+      </div>
+      <hr>
+      <div class="sl" style="margin-bottom:10px">⚠️ Risk language rules</div>
+      <div class="rcard" style="border-color:#F0997B">
+        <ul style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+          <li><span class="dnti">·</span>Never say fixed APY</li>
+          <li><span class="doi">·</span>Say "APY may change"</li>
+          <li><span class="dnti">·</span>Never say no risk</li>
+          <li><span class="doi">·</span>Say "lending carries risk"</li>
+          <li><span class="doi">·</span>Refer to docs for live data</li>
+          <li><span class="doi">·</span>Check live app for current stats</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="src/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────
+# docker-compose.yml — Permapod X Content Manager
+#
+# Usage:
+#   1. cp .env.example .env
+#   2. Fill OPENROUTER_API_KEY in .env
+#   3. docker compose up --build
+#   4. Open http://localhost:8080
+# ─────────────────────────────────────────────────
+
+services:
+  permapod-content-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: permapod-content-manager
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    restart: unless-stopped
