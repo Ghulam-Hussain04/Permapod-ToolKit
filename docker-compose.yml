@@ -1,7 +1,7 @@
 services:
   frontend:
     build:
-      context: ./frontend
+      context: ./Frontend
       dockerfile: Dockerfile
     container_name: permapod-frontend
     ports:
@@ -14,7 +14,7 @@ services:
 
   bot:
     build:
-      context: ./bot
+      context: ./Bot
       dockerfile: Dockerfile.bot
     container_name: permapod-bot
     env_file:
