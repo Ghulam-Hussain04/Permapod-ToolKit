@@ -1,13 +1,6 @@
-# Environment — NEVER commit real keys
 .env
-
-# OS
+__pycache__/
+*.pyc
 .DS_Store
-Thumbs.db
-
-# Editor
 .vscode/
-.idea/
-
-# Docker
 docker-compose.override.yml

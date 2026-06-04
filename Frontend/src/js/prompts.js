@@ -149,7 +149,7 @@ export function buildPostUserMessage() {
     closingLine,
     ctx ? `Additional context from the team: ${ctx}` : '',
     '',
-    'Format rules: max 280 characters. No hashtags. No quotes around output. Output only the post text.',
+    'Format rules: max 200 characters. No hashtags. No quotes around output. Output only the post text.',
   ].filter(Boolean).join('\n');
 }
 

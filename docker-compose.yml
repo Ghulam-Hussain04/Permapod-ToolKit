@@ -1,23 +1,28 @@
-# ─────────────────────────────────────────────────
-# docker-compose.yml — Permapod X Content Manager
-#
-# Usage:
-#   1. cp .env.example .env
-#   2. Fill OPENROUTER_API_KEY in .env
-#   3. docker compose up --build
-#   4. Open http://localhost:8080
-# ─────────────────────────────────────────────────
-
 services:
-  permapod-content-manager:
+  frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: permapod-content-manager
+    container_name: permapod-frontend
     ports:
       - "${PORT:-8080}:8080"
     env_file:
       - .env
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile.bot
+    container_name: permapod-bot
+    env_file:
+      - .env
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
     restart: unless-stopped
