@@ -27,12 +27,12 @@ from handlers import (
 load_dotenv()
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-GROQ_KEY  = os.environ.get("GROQ_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 if not BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set in .env")
-if not GROQ_KEY:
-    raise ValueError("GROQ_API_KEY is not set in .env")
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY is not set in .env")
 
 # ── Logging ──────────────────────────────────────
 logging.basicConfig(

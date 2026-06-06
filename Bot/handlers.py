@@ -16,7 +16,7 @@ from prompts import (
     build_repost_prompt, build_trend_prompt,
     WEEKLY_CADENCE,
 )
-from groq_client import generate_text, generate_vision
+from ai_client import generate_text, generate_vision
 
 BRAND_RULES = """🛡️ *Brand Rules — Permapod*
 
