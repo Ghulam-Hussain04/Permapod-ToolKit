@@ -360,6 +360,49 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid  = update.effective_user.id
     s    = session.get(uid)
 
+    # ── ADD THIS BLOCK: Intercept Back Button ──
+    if data == "back_step":
+        flow, step = s.get("flow"), s.get("step")
+        
+        if flow == "post":
+            # Reverse lookup for the hook map
+            rev_hook = {v: k for k, v in HOOK_MAP.items()}
+            hook_key = rev_hook.get(s.get("hook"), "hook_ai")
+            
+            if step == "pillar":  data = "flow_post"
+            elif step == "hook":  data = f"post_voice_{s.get('voice')}"
+            elif step == "closing": data = f"post_pillar_{s.get('pillar')}"
+            elif step == "context": data = hook_key
+            else: data = "back_menu"
+            
+        elif flow == "reply":
+            if step == "voice":   data = "flow_reply"
+            elif step == "tweet": data = f"bucket_{s.get('bucket')}"
+            elif step == "context": data = f"reply_voice_{s.get('voice')}"
+            else: data = "back_menu"
+            
+        elif flow == "repost":
+            if step == "pillar":  data = "flow_repost"
+            elif step == "tweet": data = f"repost_voice_{s.get('voice')}"
+            elif step == "context": data = f"repost_pillar_{s.get('pillar')}"
+            else: data = "back_menu"
+            
+        elif flow == "trend":
+            if step in ("output_type", "image_output_type"): data = "flow_trend"
+            elif step == "voice_trend": data = "timode_trend"
+            elif step == "voice_image": data = "timode_image"
+            elif step in ("pillar_trend", "pillar_image"): data = f"outtype_{s.get('output_type')}"
+            elif step in ("trend_input", "awaiting_image"): data = f"trend_voice_{s.get('voice')}"
+            elif step in ("context", "context_image"): data = f"trend_pillar_{s.get('pillar')}"
+            else: data = "back_menu"
+            
+        else:
+            data = "back_menu"
+    # ──────────────────────────────────────────
+
+    # ── Main flows (your existing code continues here) ──
+    if data == "flow_post":
+        session.set_flow(uid, "post", "voice")
     # ── Main flows ──
     if data == "flow_post":
         session.set_flow(uid, "post", "voice")

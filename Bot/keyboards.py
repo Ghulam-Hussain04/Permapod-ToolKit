@@ -5,10 +5,11 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ── SHARED ───────────────────────────────────────
-def _back():
-    """Single back-to-main-menu row, reused everywhere."""
-    return [InlineKeyboardButton("⬅️ Back", callback_data="back_menu")]
+# keyboards.py
 
+def _back():
+    """Single back-to-previous-step row, reused everywhere."""
+    return [InlineKeyboardButton("⬅️ Back", callback_data="back_step")]
 # ── MAIN MENU ────────────────────────────────────
 def main_menu():
     return InlineKeyboardMarkup([
