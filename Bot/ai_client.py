@@ -12,7 +12,7 @@ except ImportError:
     Image = None
     UnidentifiedImageError = OSError
 
-from prompts import SYSTEM_PROMPT
+# from prompts import SYSTEM_PROMPT
 
 load_dotenv()
 
@@ -76,7 +76,7 @@ def _normalize_image_data_url(image_base64: str, image_mime: str) -> str | None:
         return None
 
 
-async def generate_text(user_prompt: str) -> str:
+async def generate_text(user_prompt: str, system: str = "") -> str:
     """Send a text prompt to OpenAI and return the response."""
     client = _client()
     if client is None:
@@ -89,7 +89,7 @@ async def generate_text(user_prompt: str) -> str:
             input=[
                 {
                     "role": "developer",
-                    "content": [{"type": "input_text", "text": SYSTEM_PROMPT}],
+                    "content": [{"type": "input_text", "text": system}],
                 },
                 {
                     "role": "user",
@@ -104,7 +104,12 @@ async def generate_text(user_prompt: str) -> str:
         return _openai_error_message(e)
 
 
-async def generate_vision(user_prompt: str, image_base64: str, image_mime: str) -> str:
+async def generate_vision(
+    user_prompt: str,
+    image_base64: str,
+    image_mime: str,
+    system: str = ""
+) -> str:
     """Send an image plus prompt to OpenAI and return the response."""
     client = _client()
     if client is None:
@@ -121,7 +126,7 @@ async def generate_vision(user_prompt: str, image_base64: str, image_mime: str) 
             input=[
                 {
                     "role": "developer",
-                    "content": [{"type": "input_text", "text": SYSTEM_PROMPT}],
+                    "content": [{"type": "input_text", "text": system}],
                 },
                 {
                     "role": "user",

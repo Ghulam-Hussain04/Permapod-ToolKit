@@ -4,6 +4,11 @@
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+# ── SHARED ───────────────────────────────────────
+def _back():
+    """Single back-to-main-menu row, reused everywhere."""
+    return [InlineKeyboardButton("⬅️ Back", callback_data="back_menu")]
+
 # ── MAIN MENU ────────────────────────────────────
 def main_menu():
     return InlineKeyboardMarkup([
@@ -19,39 +24,42 @@ def main_menu():
 def voice_keyboard(prefix=""):
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🏛️ Protocol voice", callback_data=f"{prefix}voice_protocol"),
+            InlineKeyboardButton("🏛️ Protocol voice",  callback_data=f"{prefix}voice_protocol"),
             InlineKeyboardButton("🤖 Blip Blop voice", callback_data=f"{prefix}voice_blipblop"),
-        ]
+        ],
+        _back(),
     ])
 
 # ── PILLARS ──────────────────────────────────────
 def pillar_keyboard(prefix=""):
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🏦 Onchain Lending",      callback_data=f"{prefix}pillar_lending"),
-            InlineKeyboardButton("💵 Stablecoin Utility",   callback_data=f"{prefix}pillar_stablecoin"),
+            InlineKeyboardButton("🏦 Onchain Lending",       callback_data=f"{prefix}pillar_lending"),
+            InlineKeyboardButton("💵 Stablecoin Utility",    callback_data=f"{prefix}pillar_stablecoin"),
         ],
         [
-            InlineKeyboardButton("📈 Lending Demand",       callback_data=f"{prefix}pillar_demand"),
-            InlineKeyboardButton("🏗️ Credit Infrastructure",callback_data=f"{prefix}pillar_credit"),
+            InlineKeyboardButton("📈 Lending Demand",        callback_data=f"{prefix}pillar_demand"),
+            InlineKeyboardButton("🏗️ Credit Infrastructure", callback_data=f"{prefix}pillar_credit"),
         ],
         [
-            InlineKeyboardButton("⛓️ ZIGChain Ecosystem",   callback_data=f"{prefix}pillar_zigchain"),
-            InlineKeyboardButton("📚 Product Education",    callback_data=f"{prefix}pillar_education"),
+            InlineKeyboardButton("⛓️ ZIGChain Ecosystem",    callback_data=f"{prefix}pillar_zigchain"),
+            InlineKeyboardButton("📚 Product Education",     callback_data=f"{prefix}pillar_education"),
         ],
         [
-            InlineKeyboardButton("📊 Benchmark",            callback_data=f"{prefix}pillar_benchmark"),
-            InlineKeyboardButton("🤖 Blip Blop",            callback_data=f"{prefix}pillar_blipblop"),
+            InlineKeyboardButton("📊 Benchmark",             callback_data=f"{prefix}pillar_benchmark"),
+            InlineKeyboardButton("🤖 Blip Blop",             callback_data=f"{prefix}pillar_blipblop"),
         ],
+        _back(),
     ])
 
 # ── REPLY BUCKETS ────────────────────────────────
 def bucket_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💵 Under stablecoin posts",   callback_data="bucket_stablecoin")],
-        [InlineKeyboardButton("📈 Under DeFi yield posts",   callback_data="bucket_defi")],
+        [InlineKeyboardButton("📈 Under Defi yield posts",   callback_data="bucket_defi")],
         [InlineKeyboardButton("⛓️ Under ZIGChain posts",     callback_data="bucket_zig")],
         [InlineKeyboardButton("📣 Under Permapod mentions",  callback_data="bucket_mention")],
+        _back(),
     ])
 
 # ── HOOK OPTIONS ─────────────────────────────────
@@ -64,6 +72,7 @@ def hook_keyboard():
         [InlineKeyboardButton("Productive capital builds stronger markets.",     callback_data="hook_4")],
         [InlineKeyboardButton("Capital should work, not wait.",                  callback_data="hook_5")],
         [InlineKeyboardButton("Lending infrastructure matters.",                 callback_data="hook_6")],
+        _back(),
     ])
 
 # ── CLOSING OPTIONS ──────────────────────────────
@@ -75,39 +84,43 @@ def closing_keyboard():
         [InlineKeyboardButton("Onchain lending is only getting started.",        callback_data="closing_3")],
         [InlineKeyboardButton("Stablecoins deserve better markets.",             callback_data="closing_4")],
         [InlineKeyboardButton("Permapod is building that layer on ZIGChain.",   callback_data="closing_5")],
+        _back(),
     ])
 
 # ── TREND INPUT MODE ─────────────────────────────
 def trend_mode_keyboard():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📝 Text trend",        callback_data="timode_trend"),
-            InlineKeyboardButton("🖼️ Screenshot/Image",  callback_data="timode_image"),
-        ]
+            InlineKeyboardButton("📝 Text trend",       callback_data="timode_trend"),
+            InlineKeyboardButton("🖼️ Screenshot/Image", callback_data="timode_image"),
+        ],
+        _back(),
     ])
 
 # ── TREND OUTPUT TYPE ────────────────────────────
 def output_type_keyboard():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🐦 Original tweet",    callback_data="outtype_tweet"),
-            InlineKeyboardButton("💬 Reply",              callback_data="outtype_reply"),
-            InlineKeyboardButton("🔁 Repost comment",    callback_data="outtype_repost"),
-        ]
+            InlineKeyboardButton("🐦 Original tweet",  callback_data="outtype_tweet"),
+            InlineKeyboardButton("💬 Reply",            callback_data="outtype_reply"),
+            InlineKeyboardButton("🔁 Repost comment",  callback_data="outtype_repost"),
+        ],
+        _back(),
     ])
 
 # ── SKIP / GENERATE ──────────────────────────────
 def skip_keyboard(skip_data="skip_context"):
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏭️ Skip (no context)",  callback_data=skip_data)],
+        [InlineKeyboardButton("⏭️ Skip (no context)", callback_data=skip_data)],
+        _back(),
     ])
 
-# ── AFTER GENERATION ────────────────────────────
+# ── AFTER GENERATION ─────────────────────────────
 def after_gen_keyboard(flow):
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔄 Regenerate",    callback_data=f"regen_{flow}"),
-            InlineKeyboardButton("🏠 Main menu",     callback_data="back_menu"),
+            InlineKeyboardButton("🔄 Regenerate",  callback_data=f"regen_{flow}"),
+            InlineKeyboardButton("🏠 Main menu",   callback_data="back_menu"),
         ]
     ])
 
@@ -115,16 +128,17 @@ def after_gen_keyboard(flow):
 def cadence_keyboard():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Mon — Market",     callback_data="cadence_mon"),
-            InlineKeyboardButton("Tue — Product",    callback_data="cadence_tue"),
+            InlineKeyboardButton("Mon — Market",    callback_data="cadence_mon"),
+            InlineKeyboardButton("Tue — Product",   callback_data="cadence_tue"),
         ],
         [
-            InlineKeyboardButton("Wed — Blip Blop",  callback_data="cadence_wed"),
-            InlineKeyboardButton("Thu — Ecosystem",  callback_data="cadence_thu"),
+            InlineKeyboardButton("Wed — Blip Blop", callback_data="cadence_wed"),
+            InlineKeyboardButton("Thu — Ecosystem", callback_data="cadence_thu"),
         ],
         [
-            InlineKeyboardButton("Fri — Benchmark",  callback_data="cadence_fri"),
-            InlineKeyboardButton("Sat — Community",  callback_data="cadence_sat"),
+            InlineKeyboardButton("Fri — Benchmark", callback_data="cadence_fri"),
+            InlineKeyboardButton("Sat — Community", callback_data="cadence_sat"),
         ],
-        [InlineKeyboardButton("Sun — Narrative",     callback_data="cadence_sun")],
+        [InlineKeyboardButton("Sun — Narrative",    callback_data="cadence_sun")],
+        _back(),
     ])
