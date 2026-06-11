@@ -1,15 +1,21 @@
 # ═══════════════════════════════════════════════
 # keyboards.py — All inline keyboard definitions
+# Combined version
 # ═══════════════════════════════════════════════
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ── SHARED ───────────────────────────────────────
-# keyboards.py
-
 def _back():
     """Single back-to-previous-step row, reused everywhere."""
     return [InlineKeyboardButton("⬅️ Back", callback_data="back_step")]
+
+
+def _main_menu_row():
+    """Explicit main-menu row for final/result screens."""
+    return [InlineKeyboardButton("🏠 Main menu", callback_data="back_menu")]
+
+
 # ── MAIN MENU ────────────────────────────────────
 def main_menu():
     return InlineKeyboardMarkup([
@@ -19,7 +25,9 @@ def main_menu():
         [InlineKeyboardButton("🔥 Trend / Image",     callback_data="flow_trend")],
         [InlineKeyboardButton("🛡️ Brand Rules",       callback_data="flow_rules")],
         [InlineKeyboardButton("📅 Weekly Cadence",    callback_data="flow_cadence")],
+        [InlineKeyboardButton("📋 My Approvals",      callback_data="flow_history")],
     ])
+
 
 # ── VOICE ────────────────────────────────────────
 def voice_keyboard(prefix=""):
@@ -30,6 +38,7 @@ def voice_keyboard(prefix=""):
         ],
         _back(),
     ])
+
 
 # ── PILLARS ──────────────────────────────────────
 def pillar_keyboard(prefix=""):
@@ -53,6 +62,7 @@ def pillar_keyboard(prefix=""):
         _back(),
     ])
 
+
 # ── REPLY BUCKETS ────────────────────────────────
 def bucket_keyboard():
     return InlineKeyboardMarkup([
@@ -62,6 +72,7 @@ def bucket_keyboard():
         [InlineKeyboardButton("📣 Under Permapod mentions",  callback_data="bucket_mention")],
         _back(),
     ])
+
 
 # ── HOOK OPTIONS ─────────────────────────────────
 def hook_keyboard():
@@ -76,6 +87,7 @@ def hook_keyboard():
         _back(),
     ])
 
+
 # ── CLOSING OPTIONS ──────────────────────────────
 def closing_keyboard():
     return InlineKeyboardMarkup([
@@ -84,9 +96,10 @@ def closing_keyboard():
         [InlineKeyboardButton("Capital should be productive.",                   callback_data="closing_2")],
         [InlineKeyboardButton("Onchain lending is only getting started.",        callback_data="closing_3")],
         [InlineKeyboardButton("Stablecoins deserve better markets.",             callback_data="closing_4")],
-        [InlineKeyboardButton("Permapod is building that layer on ZIGChain.",   callback_data="closing_5")],
+        [InlineKeyboardButton("Permapod is building that layer on ZIGChain.",    callback_data="closing_5")],
         _back(),
     ])
+
 
 # ── TREND INPUT MODE ─────────────────────────────
 def trend_mode_keyboard():
@@ -98,16 +111,18 @@ def trend_mode_keyboard():
         _back(),
     ])
 
+
 # ── TREND OUTPUT TYPE ────────────────────────────
 def output_type_keyboard():
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🐦 Original tweet",  callback_data="outtype_tweet"),
-            InlineKeyboardButton("💬 Reply",            callback_data="outtype_reply"),
-            InlineKeyboardButton("🔁 Repost comment",  callback_data="outtype_repost"),
+            InlineKeyboardButton("💬 Reply",           callback_data="outtype_reply"),
+            InlineKeyboardButton("🔁 Repost comment", callback_data="outtype_repost"),
         ],
         _back(),
     ])
+
 
 # ── SKIP / GENERATE ──────────────────────────────
 def skip_keyboard(skip_data="skip_context"):
@@ -116,14 +131,36 @@ def skip_keyboard(skip_data="skip_context"):
         _back(),
     ])
 
-# ── AFTER GENERATION ─────────────────────────────
-def after_gen_keyboard(flow):
+
+# ── AFTER GENERATION — with approve buttons ───────
+def after_gen_keyboard(flow: str):
+    """
+    Shown after tweet generation.
+    User can approve Tweet 1, approve Tweet 2, regenerate, or go home.
+    approve_1_{flow} and approve_2_{flow} are handled in handlers.py.
+    """
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔄 Regenerate",  callback_data=f"regen_{flow}"),
+            InlineKeyboardButton("✅ Approve Tweet 1", callback_data=f"approve_1_{flow}"),
+            InlineKeyboardButton("✅ Approve Tweet 2", callback_data=f"approve_2_{flow}"),
+        ],
+        [
+            InlineKeyboardButton("🔄 Regenerate", callback_data=f"regen_{flow}"),
             InlineKeyboardButton("🏠 Main menu",   callback_data="back_menu"),
-        ]
+        ],
     ])
+
+
+# ── AFTER APPROVAL ────────────────────────────────
+def after_approval_keyboard(flow: str):
+    """Shown after a tweet is approved and saved."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🔄 Generate another", callback_data=f"regen_{flow}"),
+            InlineKeyboardButton("🏠 Main menu",         callback_data="back_menu"),
+        ],
+    ])
+
 
 # ── WEEKLY CADENCE ───────────────────────────────
 def cadence_keyboard():
@@ -140,6 +177,7 @@ def cadence_keyboard():
             InlineKeyboardButton("Fri — Benchmark", callback_data="cadence_fri"),
             InlineKeyboardButton("Sat — Community", callback_data="cadence_sat"),
         ],
-        [InlineKeyboardButton("Sun — Narrative",    callback_data="cadence_sun")],
+        [InlineKeyboardButton("Sun — Narrative", callback_data="cadence_sun")],
         _back(),
     ])
+

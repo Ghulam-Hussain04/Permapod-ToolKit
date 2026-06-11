@@ -1,48 +1,88 @@
+/* ═══════════════════════════════════════════════
+   api.js — Backend connection and display logic
+   ═══════════════════════════════════════════════ */
+
 import { state } from '/src/js/state.js';
 import {
-  buildPostUserMessage,
-  buildReplyUserMessage,
-  buildRepostUserMessage,
-  buildTrendTextUserMessage,
-  buildTrendImageUserMessage,
-} from '/src/js/prompts.js';
-
-function buildPayload(mode) {
-  if (mode === 'post') {
-    return { prompt: buildPostUserMessage(), imageBase64: null, imageMime: null };
-  }
-  if (mode === 'reply') {
-    return { prompt: buildReplyUserMessage(), imageBase64: null, imageMime: null };
-  }
-  if (mode === 'repost') {
-    return { prompt: buildRepostUserMessage(), imageBase64: null, imageMime: null };
-  }
-  if (mode === 'trend' && state.tiMode === 'image') {
-    if (!state.imgBase64) {
-      throw new Error('Please upload an image first, or switch to Trend input mode.');
-    }
-    return {
-      prompt: buildTrendImageUserMessage(),
-      imageBase64: state.imgBase64,
-      imageMime: state.imgType,
-    };
-  }
-  if (mode === 'trend') {
-    return { prompt: buildTrendTextUserMessage(), imageBase64: null, imageMime: null };
-  }
-  throw new Error(`Unknown generation mode: ${mode}`);
-}
+  buildPayload
+} from './api_helpers.js'; // Internal extraction handling
 
 function renderResult(mode, generatedText, isVision) {
   const outEl = document.getElementById('out-' + mode);
   const outText = document.getElementById('otext-' + mode);
-
-  outText.textContent = generatedText;
-
   const cc = document.getElementById('cc-' + mode);
-  cc.textContent = generatedText.length + ' / 280 characters';
-  cc.className = 'ci' + (generatedText.length > 280 ? ' warn' : '');
-  if (isVision) cc.textContent += '  -  vision model';
+  const tagEl = document.getElementById('tag-' + mode);
+
+  // Clear past data
+  outText.innerHTML = '';
+
+  // Parse double tweet layout structures safely matching the bot's raw formatting
+  const tweets = generatedText.split(/Tweet \d+:/gi).map(t => t.trim()).filter(Boolean);
+
+  if (tweets.length >= 2) {
+    tweets.forEach((tweetContent, index) => {
+      const idx = index + 1;
+      const cleanText = tweetContent.replace(/^\[|\]$/g, '').trim();
+      
+      const tBlock = document.createElement('div');
+      tBlock.className = 'tweet-option-block';
+      tBlock.style.marginBottom = '16px';
+      tBlock.style.borderBottom = index === 0 ? '1px dashed var(--color-border-tertiary)' : 'none';
+      tBlock.style.paddingBottom = index === 0 ? '14px' : '0';
+
+      const labelRow = document.createElement('div');
+      labelRow.style.display = 'flex';
+      labelRow.style.justifyContent = 'space-between';
+      labelRow.style.marginBottom = '6px';
+
+      const label = document.createElement('span');
+      label.className = 'tag';
+      label.style.background = 'var(--color-background-primary)';
+      label.style.fontSize = '11px';
+      label.textContent = `Option ${idx}`;
+
+      const itemCopy = document.createElement('button');
+      itemCopy.className = 'ibtn';
+      itemCopy.textContent = '⎘ Copy Option';
+      itemCopy.onclick = () => {
+        navigator.clipboard.writeText(cleanText);
+        itemCopy.textContent = '✓ Copied';
+        setTimeout(() => { itemCopy.textContent = '⎘ Copy Option'; }, 1500);
+      };
+
+      labelRow.appendChild(label);
+      labelRow.appendChild(itemCopy);
+
+      const textBody = document.createElement('div');
+      textBody.className = 'otext-body';
+      textBody.style.fontFamily = 'var(--font)';
+      textBody.style.fontSize = '14px';
+      textBody.style.whiteSpace = 'pre-wrap';
+      textBody.style.lineHeight = '1.7';
+      textBody.textContent = cleanText;
+
+      const metrics = document.createElement('div');
+      metrics.className = 'ci';
+      metrics.style.fontSize = '11px';
+      metrics.style.marginTop = '6px';
+      metrics.style.color = cleanText.length > 280 ? '#D85A30' : 'var(--color-text-tertiary)';
+      metrics.textContent = `${cleanText.length} / 280 chars`;
+
+      tBlock.appendChild(labelRow);
+      tBlock.appendChild(textBody);
+      tBlock.appendChild(metrics);
+      outText.appendChild(tBlock);
+    });
+
+    cc.textContent = 'Dual choices compiled';
+  } else {
+    // Fallback single layout render wrapper
+    outText.textContent = generatedText;
+    cc.textContent = `${generatedText.length} / 280 characters`;
+    cc.className = 'ci' + (generatedText.length > 280 ? ' warn' : '');
+  }
+
+  if (isVision) cc.textContent += '  ·  vision enabled';
 
   const tagMap = { post: 'tag tg', reply: 'tag tb', repost: 'tag tp', trend: 'tag tam' };
   const voiceMap = {
@@ -51,7 +91,7 @@ function renderResult(mode, generatedText, isVision) {
     repost: state.repostVoice,
     trend: state.trendVoice,
   };
-  const tagEl = document.getElementById('tag-' + mode);
+  
   tagEl.className = tagMap[mode];
   tagEl.textContent = voiceMap[mode] === 'protocol' ? 'Protocol voice' : 'Blip Blop';
 
@@ -65,7 +105,7 @@ export async function gen(mode) {
 
   btn.disabled = true;
   const origLabel = btn.innerHTML;
-  btn.innerHTML = '<span class="spin"></span> Generating...';
+  btn.innerHTML = '<span class="spin"></span> Generating variants...';
 
   try {
     const payload = buildPayload(mode);
@@ -77,12 +117,12 @@ export async function gen(mode) {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || `Request failed with status ${res.status}`);
+      throw new Error(data.error || `Failed with status ${res.status}`);
     }
 
     const generatedText = (data.text || '').trim();
     if (!generatedText) {
-      throw new Error('Empty response. Try regenerating.');
+      throw new Error('Empty response. Please try spinning it up again.');
     }
 
     renderResult(mode, generatedText, Boolean(payload.imageBase64));
@@ -94,5 +134,3 @@ export async function gen(mode) {
     btn.innerHTML = origLabel;
   }
 }
-
-export function saveKeyFromInlineInput() {}

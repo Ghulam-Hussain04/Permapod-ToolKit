@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════
-# handlers.py — All flow and callback handlers
+# handlers.py — All flow and callback handlers combined
 # ═══════════════════════════════════════════════
 
 import base64
@@ -17,7 +17,8 @@ from prompts import (
     WEEKLY_CADENCE,
 )
 from ai_client import generate_text, generate_vision
-
+from db import save_approved_tweet, get_approved_examples, get_user_history, init_db
+from chroma_client import embed_and_store, search_similar
 # ══════════════════════════════════════════════════════════════════════════
 # SYSTEM PROMPT — Single source of truth for all AI calls.
 # Built from the Permapod Content Training Pack in full.
@@ -332,14 +333,132 @@ async def send_main_menu(update: Update, text="What would you like to create?"):
             content, reply_markup=kb.main_menu(), parse_mode=ParseMode.MARKDOWN,
         )
 
+def _parse_tweets(result: str) -> tuple[str, str]:
+    """
+    Parse AI output into (tweet1_text, tweet2_text).
+    Handles 'Tweet 1:' and 'Tweet 2:' labels.
+    Returns empty string for a tweet if not found.
+    """
+    tweet1 = ""
+    tweet2 = ""
+
+    if "Tweet 2:" in result:
+        parts = result.split("Tweet 2:", 1)
+        tweet2 = parts[1].strip()
+        t1_raw = parts[0]
+        if "Tweet 1:" in t1_raw:
+            tweet1 = t1_raw.split("Tweet 1:", 1)[1].strip()
+        else:
+            tweet1 = t1_raw.strip()
+    elif "Tweet 1:" in result:
+        tweet1 = result.split("Tweet 1:", 1)[1].strip()
+
+    return tweet1, tweet2
+
+
 def _format_result(result: str, flow: str) -> tuple[str, object]:
     """
     Format AI result for display.
-    AI returns 2 labeled tweets — show as-is with a header.
+    Shows both tweets with approve buttons and total character count.
     """
     char_count = len(result)
     text = f"✨ *Generated:*\n\n{result}\n\n_{char_count} chars total_"
     return text, kb.after_gen_keyboard(flow)
+
+
+def _build_dynamic_system_prompt(voice: str = None, pillar: str = None) -> str:
+    """
+    Build the final system prompt by appending approved tweet examples.
+    Uses ChromaDB semantic search when available, falls back to SQL query.
+    Always returns a valid prompt even if no examples exist yet.
+    """
+    base = SYSTEM_PROMPT
+
+    query = f"{voice or ''} {pillar or ''} Permapod tweet".strip()
+    examples = search_similar(query=query, voice=voice, pillar=pillar, n=3)
+
+    if not examples:
+        examples = get_approved_examples(voice=voice, pillar=pillar, limit=3)
+
+    if not examples:
+        return base
+
+    example_block = "\n".join(f"- {t}" for t in examples)
+    injection = (
+        "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "SECTION 14 — PREVIOUSLY APPROVED TWEET EXAMPLES\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "These tweets have been reviewed and approved by the Permapod team. "
+        "Use them as quality and style references — match this standard:\n\n"
+        f"{example_block}"
+    )
+    return base + injection
+
+
+async def _handle_approve(update: Update, tweet_number: int, flow: str):
+    """
+    Called when user taps Approve Tweet 1 or Approve Tweet 2.
+    Parses the correct tweet from session, saves to DB and ChromaDB.
+    """
+    query = update.callback_query
+    uid = update.effective_user.id
+    user = update.effective_user
+    s = session.get(uid)
+
+    raw_result = s.get("last_result", "")
+    if not raw_result:
+        await query.answer("No generated tweet found. Please generate first.", show_alert=True)
+        return
+
+    tweet1, tweet2 = _parse_tweets(raw_result)
+    tweet_text = tweet1 if tweet_number == 1 else tweet2
+
+    if not tweet_text:
+        await query.answer("Could not parse tweet text. Please regenerate.", show_alert=True)
+        return
+
+    row_id = save_approved_tweet(
+        user_id=uid,
+        username=user.username or user.first_name or str(uid),
+        flow=flow,
+        tweet_number=tweet_number,
+        tweet_text=tweet_text,
+        voice=s.get("voice"),
+        pillar=s.get("pillar"),
+        bucket=s.get("bucket"),
+        hook=s.get("hook"),
+        closing=s.get("closing"),
+        output_type=s.get("output_type"),
+        context=s.get("context"),
+        source_tweet=s.get("tweet"),
+        trend_input=s.get("trend"),
+    )
+
+    if row_id is None:
+        await query.answer("DB error — could not save. Try again.", show_alert=True)
+        return
+
+    embed_and_store(
+        tweet_id=row_id,
+        tweet_text=tweet_text,
+        voice=s.get("voice"),
+        pillar=s.get("pillar"),
+        flow=flow,
+        bucket=s.get("bucket"),
+    )
+
+    username_display = f"@{user.username}" if user.username else user.first_name
+    confirmation = (
+        f"✅ *Tweet {tweet_number} approved and saved!*\n\n"
+        f"_{tweet_text}_\n\n"
+        f"Saved by {username_display} · flow: {flow} · "
+        f"voice: {s.get('voice', 'n/a')} · pillar: {s.get('pillar', 'n/a')}"
+    )
+    await query.edit_message_text(
+        confirmation,
+        reply_markup=kb.after_approval_keyboard(flow),
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 # ── START / MENU ──────────────────────────────────
 
@@ -359,6 +478,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     data = query.data
     uid  = update.effective_user.id
     s    = session.get(uid)
+
+    # ── Approve callbacks ──────────────────────────
+    if data.startswith("approve_"):
+        parts = data.split("_", 2)
+        if len(parts) == 3:
+            tweet_number = int(parts[1])
+            flow = parts[2]
+            await _handle_approve(update, tweet_number, flow)
+        return
 
     # ── ADD THIS BLOCK: Intercept Back Button ──
     if data == "back_step":
@@ -400,9 +528,6 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             data = "back_menu"
     # ──────────────────────────────────────────
 
-    # ── Main flows (your existing code continues here) ──
-    if data == "flow_post":
-        session.set_flow(uid, "post", "voice")
     # ── Main flows ──
     if data == "flow_post":
         session.set_flow(uid, "post", "voice")
@@ -441,6 +566,23 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "📅 *Weekly Content Cadence*\n\nPick a day to auto-set voice and pillar:",
             reply_markup=kb.cadence_keyboard(), parse_mode=ParseMode.MARKDOWN,
+        )
+
+    elif data == "flow_history":
+        rows = get_user_history(uid, limit=5)
+        if not rows:
+            text = "📋 *Your Approvals*\n\nNo approved tweets yet."
+        else:
+            lines = ["📋 *Your Recent Approvals*\n"]
+            for r in rows:
+                dt = r["approved_at"].strftime("%d %b %Y") if r["approved_at"] else "n/a"
+                lines.append(
+                    f"*{dt}* · {r['flow']} · {r.get('voice','') or 'n/a'} · {r.get('pillar','') or 'n/a'}\n"
+                    f"_{r['tweet_text'][:120]}{'...' if len(r['tweet_text']) > 120 else ''}_\n"
+                )
+            text = "\n".join(lines)
+        await query.edit_message_text(
+            text, reply_markup=back_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "back_menu":
@@ -483,9 +625,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("⏳ Generating 2 tweet options...")
         result = await generate_text(
             build_post_prompt(s["voice"], s["pillar"], "", s["hook"], s["closing"]),
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "post")
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -513,23 +655,23 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("⏳ Generating 2 reply options...")
             result = await generate_text(
                 build_reply_prompt(s["voice"], s["bucket"], s["tweet"], ""),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         elif flow == "repost":
             await query.edit_message_text("⏳ Generating 2 repost comment options...")
             result = await generate_text(
                 build_repost_prompt(s["voice"], s["pillar"], s["tweet"], ""),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         elif flow == "trend":
             await query.edit_message_text("⏳ Generating 2 options from trend...")
             result = await generate_text(
                 build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], ""),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         else:
             result = "Unknown flow."
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, flow)
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -617,9 +759,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         result = await generate_vision(
             build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], ""),
             s["image_b64"], s["image_mime"],
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -642,32 +784,33 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if flow == "post":
             result = await generate_text(
                 build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"]),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         elif flow == "reply":
             result = await generate_text(
                 build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"]),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         elif flow == "repost":
             result = await generate_text(
                 build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"]),
-                system=SYSTEM_PROMPT,
+                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
             )
         elif flow == "trend":
             if s.get("image_b64"):
                 result = await generate_vision(
                     build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"]),
                     s["image_b64"], s["image_mime"],
-                    system=SYSTEM_PROMPT,
+                    system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
                 )
             else:
                 result = await generate_text(
                     build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"]),
-                    system=SYSTEM_PROMPT,
+                    system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
                 )
         else:
             result = "Unknown flow."
+        session.update(uid, last_result=result)
         txt, markup = _format_result(result, flow)
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -688,9 +831,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         s = session.get(uid)
         result = await generate_text(
             build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"]),
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "post")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
@@ -711,9 +854,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         s = session.get(uid)
         result = await generate_text(
             build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"]),
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "reply")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
@@ -734,9 +877,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         s = session.get(uid)
         result = await generate_text(
             build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"]),
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "repost")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
@@ -749,9 +892,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         result = await generate_vision(
             build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"]),
             s["image_b64"], s["image_mime"],
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
@@ -772,9 +915,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         s = session.get(uid)
         result = await generate_text(
             build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"]),
-            system=SYSTEM_PROMPT,
+            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
         )
-        session.update(uid, step="done")
+        session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
@@ -790,10 +933,6 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     s   = session.get(uid)
-
-    print(f"DEBUG handle_photo called — step: {s.get('step')} flow: {s.get('flow')}")
-    print(f"DEBUG has photo: {bool(update.message.photo)}")
-    print(f"DEBUG has document: {bool(update.message.document)}")
 
     if s.get("step") != "awaiting_image":
         await update.message.reply_text("Please start a Trend/Image flow first. Use /menu.")
@@ -823,3 +962,9 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb.skip_keyboard("skip_image_context"),
         parse_mode=ParseMode.MARKDOWN,
     )
+
+
+
+
+
+

@@ -1,4 +1,8 @@
 .env
+
+session_updated.py
+handlers_combined.py
+keyboards_combined.py
 __pycache__/
 *.pyc
 .DS_Store

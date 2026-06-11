@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════
-# session.py — Per-user session state
+# session.py — Per-user session state   all combined version
 # Tracks which step each user is on in a flow
 # ═══════════════════════════════════════════════
 
@@ -20,15 +20,24 @@ DEFAULT = {
     "trend":       "",
     "image_b64":   None,
     "image_mime":  None,
-    "nav_stack":   [],      # list of {"text": str, "markup": InlineKeyboardMarkup} for back navigation
+    "last_result": "",      # stores last AI output so approve can parse it
+    "nav_stack":   [],      # list of previous screens for back navigation
 }
+
+
+def _new_session() -> dict:
+    """
+    Create a fresh session dict.
+    Important: nav_stack must be a new list per user, not shared from DEFAULT.
+    """
+    s = DEFAULT.copy()
+    s["nav_stack"] = []
+    return s
 
 
 def get(user_id: int) -> dict:
     if user_id not in _sessions:
-        s = DEFAULT.copy()
-        s["nav_stack"] = []
-        _sessions[user_id] = s
+        _sessions[user_id] = _new_session()
     return _sessions[user_id]
 
 
@@ -38,17 +47,17 @@ def update(user_id: int, **kwargs):
 
 
 def reset(user_id: int):
-    s = DEFAULT.copy()
-    s["nav_stack"] = []
-    _sessions[user_id] = s
+    _sessions[user_id] = _new_session()
 
 
 def set_flow(user_id: int, flow: str, step: str):
     s = get(user_id)
     s["flow"] = flow
     s["step"] = step
+    s["nav_stack"] = []
 
-# ── NAV STACK helpers ──────────────────────────────
+
+# ── NAV STACK HELPERS ─────────────────────────────
 # Each entry: {"text": str, "markup": InlineKeyboardMarkup}
 # Push the CURRENT screen before advancing so Back can replay it.
 
@@ -68,3 +77,5 @@ def nav_pop(user_id: int):
 def nav_clear(user_id: int):
     s = get(user_id)
     s["nav_stack"] = []
+
+

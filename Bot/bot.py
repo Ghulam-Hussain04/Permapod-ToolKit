@@ -22,6 +22,7 @@ from handlers import (
     handle_message,
     handle_photo,
 )
+from db import init_db
 
 # ── Load env ─────────────────────────────────────
 load_dotenv()
@@ -43,6 +44,9 @@ logger = logging.getLogger(__name__)
 
 # ── App ───────────────────────────────────────────
 async def main():
+    # Initialise PostgreSQL table on startup
+    logger.info("Initialising database...")
+    init_db()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))

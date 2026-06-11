@@ -22,17 +22,26 @@ export function sw(t) {
   });
 }
 
-/* ── WEEKLY DAY STRIP ──────────────────────────── */
+/* ── WEEKLY DAY STRIP (Updated for Parity) ── */
 export function selDay(el, type, voice, pillar) {
   document.querySelectorAll('.db').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  
+  // 1. Correctly update the brand voice state and UI selection globally
   setV('post', voice);
+  
+  // 2. Map and highlight the correct pillar matching the bot's cadence configurations
   const pills = document.querySelectorAll('#post-pills .pill');
   pills.forEach(p => p.classList.remove('sg'));
+  
   const match = [...pills].find(p =>
     p.textContent.toLowerCase().includes(pillar.toLowerCase().split(' ')[0])
   );
-  if (match) { match.classList.add('sg'); state.postPillar = pillar; }
+  if (match) { 
+    match.classList.add('sg'); 
+    state.postPillar = pillar; 
+  }
+  
   document.getElementById('day-info-text').textContent =
     el.querySelector('.dn').textContent + ' — ' + type;
   document.getElementById('day-info').style.display = 'inline-flex';
