@@ -1,156 +1,159 @@
-# Permapod X Content Manager
+# Permapod Content Manager
 
-AI-powered X/Twitter content tool for Permapod. It generates on-brand posts, replies, quote-repost comments, and trend/image responses using the Permapod voice and messaging rules.
+AI-powered Telegram content assistant for Permapod, the onchain credit market on ZIGChain.
 
-The project has two run modes:
+The system helps generate high-quality X content while continuously learning from previously approved content through PostgreSQL storage and ChromaDB semantic retrieval.
 
-- Web frontend served by a small Python backend.
-- Telegram bot.
+---
 
-Both modes use the OpenAI API. API keys stay on the Python backend and are not exposed in browser JavaScript.
+# Features
 
-## Project Structure
+## Content Generation Flows
 
-```text
-TweetGeneration/
-|-- Bot/
-|   |-- ai_client.py          # OpenAI text and image calls
-|   |-- bot.py                # Telegram bot entry point
-|   |-- handlers.py           # Telegram flow handlers
-|   |-- prompts.py            # Prompt builders and brand rules
-|   |-- requirements.txt      # Python dependencies
-|   `-- web_app.py            # Local web server for the frontend
-|-- Frontend/
-|   |-- index.html            # Web UI shell
-|   `-- src/
-|       |-- css/styles.css
-|       `-- js/
-|           |-- api.js        # Calls local /api/generate backend
-|           |-- main.js
-|           |-- prompts.js
-|           |-- state.js
-|           `-- ui.js
-|-- tweets_output.txt         # Extracted tweets file, not used by the app yet
-|-- .env.example
-|-- docker-compose.yml
-`-- README.md
-```
+✏️ New Post
+💬 Reply
+🔁 Repost + Comment
+🔥 Trend / Image
 
-## Setup
+---
 
-Create and activate a virtual environment:
+## Approval Workflow
 
-```powershell
-cd TweetGeneration
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r Bot\requirements.txt
-```
+Every generation produces:
 
-On macOS/Linux, activate the environment with:
+* Tweet 1
+* Tweet 2
 
-```bash
-source .venv/bin/activate
-```
+Users can:
 
-Create `.env` in the project root:
+* Approve Tweet 1
+* Approve Tweet 2
+* Regenerate
+* Return to Main Menu
 
-```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-PORT=8080
+Approved content becomes part of the system's memory.
 
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4.1-mini
-OPENAI_VISION_MODEL=gpt-4.1-mini
-```
+---
 
-## Run The Web Frontend
+# Learning System
 
-Use this when you want the browser UI:
+The bot improves over time using approved content.
 
-```powershell
-.\.venv\Scripts\activate
-python Bot\web_app.py
-```
+## PostgreSQL Memory Layer
 
-Open:
+Approved tweets are stored with:
 
-```text
-http://127.0.0.1:8080
-```
+* Flow
+* Voice
+* Pillar
+* Bucket
+* Hook
+* Closing
+* Context
+* Source tweet
+* Trend input
+* Approval timestamp
 
-The frontend calls the local Python backend at `/api/generate`, and the backend calls OpenAI.
+This creates a structured content archive.
 
-## Run The Telegram Bot
+---
 
-Use this when you want the Telegram bot:
+## ChromaDB Semantic Memory
 
-```powershell
-.\.venv\Scripts\activate
-python Bot\bot.py
-```
+After approval:
 
-In Telegram, start the bot with:
+1. Tweet is saved in PostgreSQL
+2. Tweet is embedded into ChromaDB
+3. Metadata is stored:
 
-```text
-/start
-```
+   * Voice
+   * Pillar
+   * Flow
+   * Bucket
 
-## Environment Variables
+Future generations perform semantic similarity search against approved content.
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `OPENAI_API_KEY` | Yes | none | OpenAI API key used by the backend. |
-| `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | API base URL. Keep default for direct OpenAI. |
-| `OPENAI_MODEL` | No | `gpt-4.1-mini` | Text model for posts, replies, reposts, and trend text. |
-| `OPENAI_VISION_MODEL` | No | same as `OPENAI_MODEL` | Vision-capable model for uploaded images/screenshots. |
-| `TELEGRAM_BOT_TOKEN` | Telegram only | none | Token from BotFather. |
-| `PORT` | No | `8080` | Local web server port. |
+This means the AI learns what the team actually approves instead of relying only on static prompting.
 
-## Models
+---
 
-Default model:
+## Dynamic Prompt Injection
 
-```text
-gpt-4.1-mini
-```
+When generating content:
 
-It is used for both text and image understanding by default. If you change `OPENAI_VISION_MODEL`, make sure the model supports image input.
+1. Bot searches ChromaDB for relevant approved tweets.
+2. If ChromaDB is unavailable, it falls back to PostgreSQL examples.
+3. Matching examples are injected into the system prompt.
+4. OpenAI generates content using real approved content as style references.
 
-## Features
+This creates a feedback loop:
 
-| Tab | What it does |
-| --- | --- |
-| New post | Generates original posts with weekly cadence, voice, pillar, hook, and closing controls. |
-| Reply | Generates replies for stablecoin, DeFi, ZIGChain, or mention contexts. |
-| Repost + comment | Generates quote-repost comments. |
-| Trend / Image | Responds to text trends or uploaded screenshots/images. |
-| Brand rules | Shows Permapod messaging dos, don'ts, hooks, closers, and risk-language rules. |
+Generate → Approve → Store → Learn → Improve
 
-## ChromaDB / Tweet Memory
+---
 
-`tweets_output.txt` is present in the repo, but the current app does not ingest it.
+## 📋 My Approvals
 
-There is currently:
+View recently approved content including:
 
-- No ChromaDB startup build.
-- No vector database.
-- No retrieval-augmented generation from extracted tweets.
+* Flow
+* Voice
+* Pillar
+* Approval date
+* Tweet preview
 
-If tweet memory is needed later, add a separate ingestion step that builds a persistent ChromaDB folder from `tweets_output.txt`, then query it before generation.
+---
 
-## Notes
+# Architecture
 
-- Do not commit `.env`.
-- The browser never receives `OPENAI_API_KEY`.
-- If image generation/analysis fails, confirm `OPENAI_VISION_MODEL` supports image input.
-- Always check official Permapod docs and X before publishing posts that depend on live APY, TVL, supported assets, or campaign details.
+Telegram Bot
+↓
+Conversation Flow Engine
+↓
+Prompt Builder
+↓
+Dynamic Example Retrieval
+↓
+OpenAI
+↓
+Approval System
+↓
+PostgreSQL
+↓
+ChromaDB Embeddings
 
-## Official References
+---
 
-| Resource | Link |
-| --- | --- |
-| Protocol docs | https://permapod.gitbook.io/home |
-| X account | https://x.com/PermaPod_xyz |
-| Telegram | https://t.me/+H2rZ-U_E0po2MWY1 |
+# Tech Stack
+
+Backend
+
+* Python
+* python-telegram-bot
+* PostgreSQL
+* ChromaDB
+* OpenAI API
+* aiohttp
+
+Storage
+
+* PostgreSQL for approved content
+* ChromaDB for semantic search
+
+AI
+
+* OpenAI Responses API
+* OpenAI Vision
+
+Infrastructure
+
+* Docker
+* Docker Compose
+
+---
+
+# Core Philosophy
+
+The goal is not simply to generate tweets.
+
+The goal is to build a content system that learns from real approvals and gradually converges on the exact style the Permapod team prefers.
