@@ -17,7 +17,13 @@ from prompts import (
     WEEKLY_CADENCE,
 )
 from ai_client import generate_text, generate_vision
-from db import save_approved_tweet, get_approved_examples, get_user_history, init_db
+from db import (
+    save_approved_tweet,
+    get_approved_examples,
+    get_user_history,
+    get_content_stats,
+    init_db,
+)
 from chroma_client import embed_and_store, search_similar
 # ══════════════════════════════════════════════════════════════════════════
 # SYSTEM PROMPT — Single source of truth for all AI calls.
@@ -395,6 +401,55 @@ def _build_dynamic_system_prompt(voice: str = None, pillar: str = None) -> str:
     return base + injection
 
 
+def _format_count_lines(stats: dict, key: str, labels: list[tuple[str, str]]) -> str:
+    values = stats.get(key, {})
+    return "\n".join(f"- {label}: {values.get(value, 0)}" for value, label in labels)
+
+
+def _format_content_stats(stats: dict) -> str:
+    voice_labels = [
+        ("protocol", "Protocol"),
+        ("blipblop", "Blip Blop"),
+    ]
+    flow_labels = [
+        ("post", "New Post"),
+        ("reply", "Reply"),
+        ("repost", "Repost"),
+        ("trend", "Trend/Image"),
+    ]
+    pillar_labels = [
+        ("lending", "Lending"),
+        ("stablecoin", "Stablecoin"),
+        ("zigchain", "ZIGChain"),
+        ("credit", "Credit"),
+        ("education", "Education"),
+        ("benchmark", "Benchmark"),
+        ("demand", "Demand"),
+        ("blipblop", "Blip Blop"),
+    ]
+
+    by_time = stats.get("by_time", {})
+    tweet_preference = stats.get("tweet_preference", {})
+
+    return (
+        "📊 *Permapod Content Stats*\n\n"
+        f"Total approved tweets: {stats.get('total', 0)}\n\n"
+        "🎙️ *By Voice:*\n"
+        f"{_format_count_lines(stats, 'by_voice', voice_labels)}\n\n"
+        "📋 *By Flow:*\n"
+        f"{_format_count_lines(stats, 'by_flow', flow_labels)}\n\n"
+        "🏦 *By Pillar:*\n"
+        f"{_format_count_lines(stats, 'by_pillar', pillar_labels)}\n\n"
+        "📅 *By Time:*\n"
+        f"- Today: {by_time.get('today', 0)}\n"
+        f"- This week: {by_time.get('week', 0)}\n"
+        f"- This month: {by_time.get('month', 0)}\n\n"
+        "🔢 *Tweet preference:*\n"
+        f"- Tweet 1 approved: {tweet_preference.get('1', 0)}\n"
+        f"- Tweet 2 approved: {tweet_preference.get('2', 0)}"
+    )
+
+
 async def _handle_approve(update: Update, tweet_number: int, flow: str):
     """
     Called when user taps Approve Tweet 1 or Approve Tweet 2.
@@ -469,6 +524,14 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     session.reset(update.effective_user.id)
     await send_main_menu(update)
+
+async def stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    content_stats = get_content_stats()
+    await update.message.reply_text(
+        _format_content_stats(content_stats),
+        reply_markup=back_keyboard(),
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 # ── CALLBACK ROUTER ───────────────────────────────
 

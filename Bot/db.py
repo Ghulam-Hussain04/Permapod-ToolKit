@@ -225,3 +225,81 @@ def get_total_approved() -> int:
     except Exception as e:
         logger.error(f"❌ DB count error: {e}")
         return 0
+
+
+def get_content_stats() -> dict:
+    """
+    Return aggregate stats for approved tweets.
+    Used by the /stats command to show content balance over time.
+    """
+    stats = {
+        "total": 0,
+        "by_voice": {},
+        "by_flow": {},
+        "by_pillar": {},
+        "by_time": {"today": 0, "week": 0, "month": 0},
+        "tweet_preference": {},
+    }
+
+    queries = {
+        "total": """
+            SELECT COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved';
+        """,
+        "by_voice": """
+            SELECT COALESCE(voice, 'unknown') AS key, COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved'
+            GROUP BY COALESCE(voice, 'unknown');
+        """,
+        "by_flow": """
+            SELECT COALESCE(flow, 'unknown') AS key, COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved'
+            GROUP BY COALESCE(flow, 'unknown');
+        """,
+        "by_pillar": """
+            SELECT COALESCE(pillar, 'unknown') AS key, COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved'
+            GROUP BY COALESCE(pillar, 'unknown');
+        """,
+        "by_time": """
+            SELECT
+                COUNT(*) FILTER (WHERE approved_at >= CURRENT_DATE) AS today,
+                COUNT(*) FILTER (WHERE approved_at >= DATE_TRUNC('week', CURRENT_DATE)) AS week,
+                COUNT(*) FILTER (WHERE approved_at >= DATE_TRUNC('month', CURRENT_DATE)) AS month
+            FROM approved_tweets
+            WHERE status = 'approved';
+        """,
+        "tweet_preference": """
+            SELECT tweet_number AS key, COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved'
+              AND tweet_number IN (1, 2)
+            GROUP BY tweet_number;
+        """,
+    }
+
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(queries["total"])
+                stats["total"] = cur.fetchone()["count"]
+
+                for section in ("by_voice", "by_flow", "by_pillar", "tweet_preference"):
+                    cur.execute(queries[section])
+                    stats[section] = {str(row["key"]): row["count"] for row in cur.fetchall()}
+
+                cur.execute(queries["by_time"])
+                row = cur.fetchone()
+                stats["by_time"] = {
+                    "today": row["today"],
+                    "week": row["week"],
+                    "month": row["month"],
+                }
+        return stats
+    except Exception as e:
+        logger.error(f"❌ DB stats error: {e}")
+        return stats

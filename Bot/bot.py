@@ -18,6 +18,7 @@ from telegram.ext import (
 
 from handlers import (
     start, menu,
+    stats,
     handle_callback,
     handle_message,
     handle_photo,
@@ -51,6 +52,7 @@ async def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu",  menu))
+    app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.Document.IMAGE, handle_photo))
