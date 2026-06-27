@@ -1,159 +1,176 @@
-# Permapod Content Manager
+# Multi-Brand Content Manager
 
-AI-powered Telegram content assistant for Permapod, the onchain credit market on ZIGChain.
+AI-powered Telegram content assistant for two brands inside one bot:
 
-The system helps generate high-quality X content while continuously learning from previously approved content through PostgreSQL storage and ChromaDB semantic retrieval.
+- `Permapod` - the onchain credit market on ZIGChain
+- `Nawa` - vault infrastructure for ethical finance
 
----
+The bot generates X content, stores approved outputs, and learns from those approvals over time through PostgreSQL storage and ChromaDB semantic retrieval.
 
-# Features
+## What It Does
 
-## Content Generation Flows
+After `/start`, the bot asks which brand to manage.
 
-✏️ New Post
-💬 Reply
-🔁 Repost + Comment
-🔥 Trend / Image
+Each brand has its own content workspace with these flows:
 
----
+- `New Post`
+- `Reply`
+- `Repost + Comment`
+- `Trend / Image`
+- `Brand Rules`
+- `Weekly Cadence`
+- `My Approvals`
 
-## Approval Workflow
+Each generation returns two options:
 
-Every generation produces:
+- `Tweet 1`
+- `Tweet 2`
 
-* Tweet 1
-* Tweet 2
+Users can approve either option, regenerate, or return to the main menu.
 
-Users can:
+## Multi-Brand Behavior
 
-* Approve Tweet 1
-* Approve Tweet 2
-* Regenerate
-* Return to Main Menu
+Permapod and Nawa share the same Telegram bot, but they do not share brand memory.
 
-Approved content becomes part of the system's memory.
+Each brand has its own:
 
----
+- prompt rules
+- voice options
+- pillar options
+- reply buckets
+- hooks and closers
+- weekly cadence
+- approved tweet history
+- semantic example retrieval
 
-# Learning System
+This means Nawa learns from Nawa approvals, and Permapod keeps learning from Permapod approvals.
+
+## Learning System
 
 The bot improves over time using approved content.
 
-## PostgreSQL Memory Layer
+### PostgreSQL Memory Layer
 
-Approved tweets are stored with:
+Approved tweets are stored with structured metadata including:
 
-* Flow
-* Voice
-* Pillar
-* Bucket
-* Hook
-* Closing
-* Context
-* Source tweet
-* Trend input
-* Approval timestamp
+- `brand`
+- `flow`
+- `voice`
+- `pillar`
+- `bucket`
+- `hook`
+- `closing`
+- `output_type`
+- `context`
+- `source_tweet`
+- `trend_input`
+- `approved_at`
 
-This creates a structured content archive.
+Existing historical approvals are treated as `permapod` by default through the startup migration.
 
----
-
-## ChromaDB Semantic Memory
+### ChromaDB Semantic Memory
 
 After approval:
 
-1. Tweet is saved in PostgreSQL
-2. Tweet is embedded into ChromaDB
-3. Metadata is stored:
+1. The approved tweet is saved in PostgreSQL.
+2. The tweet is embedded into ChromaDB.
+3. Metadata is stored for retrieval, including:
+   `brand`, `voice`, `pillar`, `flow`, and `bucket`.
 
-   * Voice
-   * Pillar
-   * Flow
-   * Bucket
+Future generations search only within the selected brand's approved content.
 
-Future generations perform semantic similarity search against approved content.
-
-This means the AI learns what the team actually approves instead of relying only on static prompting.
-
----
-
-## Dynamic Prompt Injection
+### Dynamic Prompt Injection
 
 When generating content:
 
-1. Bot searches ChromaDB for relevant approved tweets.
-2. If ChromaDB is unavailable, it falls back to PostgreSQL examples.
+1. The bot searches ChromaDB for relevant approved tweets from the selected brand.
+2. If ChromaDB is unavailable, it falls back to PostgreSQL examples for that brand.
 3. Matching examples are injected into the system prompt.
-4. OpenAI generates content using real approved content as style references.
+4. OpenAI generates new content using those examples as style references.
 
 This creates a feedback loop:
 
-Generate → Approve → Store → Learn → Improve
+`Generate -> Approve -> Store -> Learn -> Improve`
 
----
+## My Approvals
 
-## 📋 My Approvals
+`My Approvals` shows recent approved content for the currently selected brand only.
 
-View recently approved content including:
+Each entry includes:
 
-* Flow
-* Voice
-* Pillar
-* Approval date
-* Tweet preview
+- flow
+- voice
+- pillar
+- approval date
+- tweet preview
 
----
+## Architecture
 
-# Architecture
-
+```text
 Telegram Bot
-↓
-Conversation Flow Engine
-↓
-Prompt Builder
-↓
-Dynamic Example Retrieval
-↓
-OpenAI
-↓
-Approval System
-↓
-PostgreSQL
-↓
-ChromaDB Embeddings
+-> Brand Selector
+-> Conversation Flow Engine
+-> Brand-Aware Prompt Builder
+-> Dynamic Example Retrieval
+-> OpenAI
+-> Approval System
+-> PostgreSQL
+-> ChromaDB Embeddings
+```
 
----
+## Tech Stack
 
-# Tech Stack
+Backend:
 
-Backend
+- Python
+- python-telegram-bot
+- PostgreSQL
+- ChromaDB
+- OpenAI API
+- aiohttp
 
-* Python
-* python-telegram-bot
-* PostgreSQL
-* ChromaDB
-* OpenAI API
-* aiohttp
+Storage:
 
-Storage
+- PostgreSQL for approved content
+- ChromaDB for semantic search
 
-* PostgreSQL for approved content
-* ChromaDB for semantic search
+AI:
 
-AI
+- OpenAI Responses API
+- OpenAI Vision
 
-* OpenAI Responses API
-* OpenAI Vision
+Infrastructure:
 
-Infrastructure
+- Docker
+- Docker Compose
 
-* Docker
-* Docker Compose
+## Running Locally
 
----
+From the project root:
 
-# Core Philosophy
+```bash
+docker compose up --build
+```
+
+The bot service:
+
+- initializes the database
+- applies the `brand` column migration if needed
+- starts Telegram polling
+
+## Basic Smoke Test
+
+After the bot starts:
+
+1. Send `/start`
+2. Confirm the brand picker shows `Permapod` and `Nawa`
+3. Choose `Permapod` and generate a post
+4. Switch to `Nawa` and generate a post
+5. Approve one tweet under each brand
+6. Open `My Approvals` for each brand and confirm the histories are separate
+
+## Core Philosophy
 
 The goal is not simply to generate tweets.
 
-The goal is to build a content system that learns from real approvals and gradually converges on the exact style the Permapod team prefers.
+The goal is to build a content system that learns from real approvals and gradually converges on the exact style each brand team prefers.
