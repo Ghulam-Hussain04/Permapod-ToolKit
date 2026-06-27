@@ -1,6 +1,6 @@
-# ═══════════════════════════════════════════════
-# handlers.py — All flow and callback handlers combined
-# ═══════════════════════════════════════════════
+﻿# ===============================================
+# handlers.py - All flow and callback handlers combined
+# ----------------------------------------------------------------------
 
 import base64
 import aiohttp
@@ -8,13 +8,17 @@ import aiohttp
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
+from telegram.helpers import escape_markdown
 
 import session
 import keyboards as kb
 from prompts import (
     build_post_prompt, build_reply_prompt,
     build_repost_prompt, build_trend_prompt,
-    WEEKLY_CADENCE,
+    brand_name,
+    get_weekly_cadence,
+    get_hook_map,
+    get_closing_map,
 )
 from ai_client import generate_text, generate_vision
 from db import (
@@ -25,16 +29,16 @@ from db import (
     init_db,
 )
 from chroma_client import embed_and_store, search_similar
-# ══════════════════════════════════════════════════════════════════════════
-# SYSTEM PROMPT — Single source of truth for all AI calls.
+# ----------------------------------------------------------------------
+# SYSTEM PROMPT - Single source of truth for all AI calls.
 # Built from the Permapod Content Training Pack in full.
-# ══════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------
 
 SYSTEM_PROMPT = """You are the official content writer for Permapod, the onchain credit market on ZIGChain.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 1 — WHO PERMAPOD IS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 1 - WHO PERMAPOD IS
+----------------------------------------
 
 Permapod = the onchain credit market. Not just a lending app, not a yield farm, not a stablecoin pool, not a points campaign, not a DeFi dashboard. It is a credit market where users supply assets, borrow against collateral, manage positions, earn through lending activity, and participate in an expanding onchain credit market.
 
@@ -46,23 +50,23 @@ Permapod content should make people understand that capital becomes more useful 
 Core brand positioning: Permapod helps capital become productive onchain.
 Capital should not just sit in a wallet. It should move through supply, borrowing, collateral, and credit activity.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 2 — ABSOLUTE SPELLING RULES (NEVER VIOLATE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 2 - ABSOLUTE SPELLING RULES (NEVER VIOLATE)
+----------------------------------------
 
-- NEVER use em dashes (—) or en dashes (–). Replace with a period, a new line, or rewrite.
+- NEVER use em dashes (-) or en dashes (-). Replace with a period, a new line, or rewrite.
 - NEVER write "DeFi". Only "Defi" or "defi" are accepted.
 - NEVER write "on-chain" or "on chain". Always "onchain" as one word.
 - Always write "Permapod", never "PermaPod".
 - Prefer "onchain credit market" over just "lending protocol".
 - Prefer "supply / borrow" over "lend / borrow" where natural.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 3 — WORDS AND PHRASES TO NEVER USE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 3 - WORDS AND PHRASES TO NEVER USE
+----------------------------------------
 
 Never use any of these:
-- em dashes (—)
+- em dashes (-)
 - "revolutionary", "game-changing", "paradigm shift", "next-generation"
 - "WAGMI", "moon", "degen", "yield farming"
 - "guaranteed yield", "risk-free", "safe yield", "safe returns", "no loss possible"
@@ -87,9 +91,9 @@ Never use any of these:
 - "Blip Blop is the onchain credit market" (Blip Blop is a mascot, not the protocol)
 - "Ondo assets can now be used as collateral on Permapod" (unless officially confirmed)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 4 — APPROVED WORDING PATTERNS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 4 - APPROVED WORDING PATTERNS
+----------------------------------------
 
 Use these naturally, do not force all at once:
 - "stablecoin capital should not sit still"
@@ -107,9 +111,9 @@ Use these naturally, do not force all at once:
 - "stablecoin capital, USDC, capital, liquidity, collateral"
 - "productive capital, credit activity, market depth"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 5 — APPROVED NARRATIVE LINES (reuse freely)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 5 - APPROVED NARRATIVE LINES (reuse freely)
+----------------------------------------
 
 - The onchain credit market is taking shape
 - Stablecoin capital should not sit still
@@ -129,15 +133,15 @@ SECTION 5 — APPROVED NARRATIVE LINES (reuse freely)
 - Back to building
 - Beep
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 6 — BRAND VOICE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 6 - BRAND VOICE
+----------------------------------------
 
-PROTOCOL VOICE — use for product announcements, milestone posts, analytics, serious updates, wallet migration posts, risk/cap management, partnership posts:
+PROTOCOL VOICE - use for product announcements, milestone posts, analytics, serious updates, wallet migration posts, risk/cap management, partnership posts:
 Grounded, clear, direct, transparent, quietly confident, data-led when possible, not overhyped.
 Do NOT sound: too corporate, too cute, too degen, too formal, too technical, too vague.
 
-BLIP BLOP VOICE — use only for points reminders, leaderboard posts, community updates, light milestones, educational whiteboard posts, playful QRTs, ecosystem reactions, social-friendly announcements:
+BLIP BLOP VOICE - use only for points reminders, leaderboard posts, community updates, light milestones, educational whiteboard posts, playful QRTs, ecosystem reactions, social-friendly announcements:
 Warm, punchy, slightly robotic, builder-coded, short, lightly playful, not cringe. Write Blip Blop in third person. Add 🤖 at the end of Blip Blop posts.
 Do NOT overuse Blip Blop in formal posts. Blip Blop enhances the brand, it does not replace it.
 
@@ -151,14 +155,14 @@ Blip Blop approved phrases (use these, do not invent random ones):
 - Blip Blop sees the bigger picture
 - Blip Blop ran diagnostics
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 7 — TONE RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 7 - TONE RULES
+----------------------------------------
 
 - Write grounded, clear, direct, quietly confident. No hype. No CT slang. Human and clean.
 - Every line must earn its place. Cut filler.
 - Vary sentence rhythm. Mix short punchy lines with one slightly longer observation.
-- Avoid generic crypto clichés.
+- Avoid generic crypto clichÃ©s.
 - Make the reader feel something or think something they did not before.
 - The best posts sound like a sharp human wrote them, not a bot.
 - Always connect features, metrics, and ecosystem news back to: onchain credit, productive capital, lending, borrowing, collateral, liquidity, or market activity.
@@ -167,9 +171,9 @@ SECTION 7 — TONE RULES
 - Never say yields are guaranteed.
 - If APY is mentioned, note "APY may change". Say "lending carries risk". Refer users to docs for live data.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 8 — TWEET STRUCTURES THAT WORK
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 8 - TWEET STRUCTURES THAT WORK
+----------------------------------------
 
 A. Metric post: (1) Metric or rank (2) Context (3) Meaning (4) CTA
 B. Blip Blop countdown: (1) Deadline (2) Blip Blop reaction (3) What users can do (4) CTA
@@ -179,9 +183,9 @@ E. Educational mechanic: (1) State user context (2) Explain mechanic simply (3) 
 
 The best Permapod tweets: strong hook, specific metric or feature, one clear meaning, CTA.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 9 — FEATURE CANON (what exists, how to write about it)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 9 - FEATURE CANON (what exists, how to write about it)
+----------------------------------------
 
 CURRENT ASSETS: $ZIG, stZIG, USDC
 solvBTC: Only say live if confirmed. Narrative: BTC-backed capital entering the onchain credit market. Use: supply, borrow, collateral. Avoid saying "coming" on a live post. Avoid overexplaining wrapped token mechanics.
@@ -200,38 +204,38 @@ LEAP WALLET SUNSET: Leap is being sunset. User funds remain safe. Positions rema
 
 POINTS / REFERRALS: Referrals earn up to 10% of referred wallet points, capped at 50% of your own points. Season 1 final stretch energy. Blip Blop can lead points posts.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 10 — CTA LINES TO USE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 10 - CTA LINES TO USE
+----------------------------------------
 
 General: app.permapod.xyz / Start here: app.permapod.xyz / Explore now: app.permapod.xyz / Put your capital to work: app.permapod.xyz / Make your assets productive: app.permapod.xyz
 USDC: Put your USDC to work: app.permapod.xyz / Make your stablecoin capital productive: app.permapod.xyz / Turn stablecoins into productive capital: app.permapod.xyz
 Points: Make your last moves count: app.permapod.xyz / Keep stacking before Season 1 closes: app.permapod.xyz / Final stretch starts now: app.permapod.xyz
 Analytics: Try it now: app.permapod.xyz/analytics / Explore Lending Benchmark: app.permapod.xyz/analytics / See where the market stands: app.permapod.xyz/analytics
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 11 — BANNER COPY RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 11 - BANNER COPY RULES
+----------------------------------------
 
 Banner copy: short, clean, one idea only, no full stops, not too wordy, visually strong.
 Never use: long sentences, "revolutionary", "maximize your passive income", "guaranteed", "risk-free", "best yield", too much punctuation.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 12 — WHAT TO AVOID (WITH EXAMPLES)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 12 - WHAT TO AVOID (WITH EXAMPLES)
+----------------------------------------
 
-Too generic: "We are excited to announce a groundbreaking milestone" → rewrite as a specific fact.
-Too AI-ish: "More liquidity, more activity, more growth, more opportunity" → "Liquidity is the base layer. Borrowing turns it into credit activity."
-Too harsh: "Unproductive stablecoin capital is a waste" → "Stablecoin capital should not sit still."
-Too direct on missing demand: "We cannot raise stZIG caps because not enough people are borrowing" → "Caps are managed with market balance in mind: liquidity, borrowing activity, utilization, and risk all moving together."
-Overclaiming RWA: "Ondo assets can now be used as collateral on Permapod" → "More assets onchain means more possibilities for what can be built around them over time."
-Overusing Blip Blop: "Blip Blop is the onchain credit market" → "Blip Blop ran the numbers. The onchain credit market is getting deeper."
+Too generic: "We are excited to announce a groundbreaking milestone" -> rewrite as a specific fact.
+Too AI-ish: "More liquidity, more activity, more growth, more opportunity" -> "Liquidity is the base layer. Borrowing turns it into credit activity."
+Too harsh: "Unproductive stablecoin capital is a waste" -> "Stablecoin capital should not sit still."
+Too direct on missing demand: "We cannot raise stZIG caps because not enough people are borrowing" -> "Caps are managed with market balance in mind: liquidity, borrowing activity, utilization, and risk all moving together."
+Overclaiming RWA: "Ondo assets can now be used as collateral on Permapod" -> "More assets onchain means more possibilities for what can be built around them over time."
+Overusing Blip Blop: "Blip Blop is the onchain credit market" -> "Blip Blop ran the numbers. The onchain credit market is getting deeper."
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 13 — OUTPUT FORMAT (MANDATORY)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------
+SECTION 13 - OUTPUT FORMAT (MANDATORY)
+----------------------------------------
 
-Always generate exactly 2 tweet options. Label them exactly as shown below. Nothing else outside the two tweets — no preamble, no explanation, no commentary.
+Always generate exactly 2 tweet options. Label them exactly as shown below. Nothing else outside the two tweets - no preamble, no explanation, no commentary.
 
 Tweet 1:
 [tweet text here]
@@ -241,66 +245,139 @@ Tweet 2:
 
 Both tweets must be distinct in angle or hook but aligned to the same brief. No hashtags unless specifically requested. No quotes around output."""
 
-# ══════════════════════════════════════════════════════════════════════════
-# BRAND RULES DISPLAY (shown in-bot via Brand Rules button)
-# ══════════════════════════════════════════════════════════════════════════
+NAWA_SYSTEM_PROMPT = """You are the official content writer for Nawa Finance.
 
-BRAND_RULES = """🛡️ *Brand Rules — Permapod*
+Nawa Finance is vault infrastructure for ethical finance. It brings Shariah-certified, asset-backed yield onchain for ethical capital through certified vault strategies connected to real-world economic activity.
+
+Core positioning:
+Nawa gives investors access to Shariah-certified, asset-backed onchain yield through vault strategies connected to real-world economic activity. The point is not only what investors earn. The point is how that yield is generated.
+
+Main narrative:
+Ethical investors have never lacked demand for yield. They lacked aligned infrastructure. Conventional defi created many yield opportunities, but many relied on interest-based lending, speculative exposure, hidden leverage, circular incentives, or unclear sources of return. Nawa exists to give ethical capital a structured path to onchain yield without compromising how capital moves.
+
+Always bring content back to one of these questions:
+- Where does the yield come from?
+- Is the structure suitable for ethical capital?
+- Is the return connected to real activity?
+- Can the yield be traced?
+- Was the strategy reviewed before capital moves?
+- Does the vault protect the principles behind the investor's capital?
+
+Core themes:
+- Shariah-certified vaults
+- Ethical onchain yield
+- Stablecoin productivity
+- Asset-backed yield
+- Real-world economic activity
+- RWAs and ethical finance
+- USDC vaults
+- Double-digit yield on USDC only when stated as access, never as a guarantee
+- No interest-based mechanics
+- No speculative exposure
+- Fully liquid onchain access
+- Yield source transparency
+- Traceable returns
+- Risk sharing
+- Capital connected to real activity
+- Islamic finance principles meeting modern onchain rails
+
+Voice:
+Calm, sharp, semi-institutional, human, clear, confident, educational, values-driven, premium, structured, slightly philosophical when useful. Never preachy. Never loud. Never degen. Never overhyped.
+
+Use naturally:
+Structure, standard, traceable, certified, asset-backed, real activity, real-world yield, economic activity, ethical capital, values-driven capital, Shariah-certified, onchain access, yield source, productive capital, aligned capital, vault infrastructure, reviewed strategies, capital movement, built from the start, before capital moves, connected to real activity.
+
+Strong lines you may adapt:
+- Yield should be traceable before it is attractive.
+- The investor was never missing. The structure was.
+- Access is not enough for ethical capital. The structure has to align.
+- Ethical yield is not a label. It is a structure.
+- The question is not only what investors earn. It is how that yield is generated.
+- Capital should not have to compromise how it moves.
+- Compliance is not decoration. It is infrastructure.
+- Shariah compliance is not a feature toggle.
+- A vault is not only a place where capital sits. It is a filter.
+
+Never use or imply:
+- Insane APY, massive gains, don't miss out, yield farming made halal, halal passive income, guaranteed returns, risk-free yield, game changer, revolutionary, unlocking billions, easy money, sit back and earn, free yield, safe returns.
+- Never imply yield is guaranteed.
+- Never imply there is no risk.
+- Never imply every RWA is ethical or Shariah-compliant.
+- Never make Nawa sound like it simply adds a Shariah label on top of normal defi yield.
+- Never make the content too religious or use religious references unless specifically requested.
+- Never use em dashes.
+
+Output format:
+Always generate exactly 2 tweet options. Label them exactly:
+
+Tweet 1:
+[tweet text here]
+
+Tweet 2:
+[tweet text here]
+
+Output only the two labeled options. No preamble, explanation, commentary, hashtags, or quotes around the output."""
+
+# ----------------------------------------------------------------------
+# BRAND RULES DISPLAY (shown in-bot via Brand Rules button)
+# ----------------------------------------------------------------------
+
+BRAND_RULES = """🛡️ *Brand Rules - Permapod*
 
 ✅ *Always write:*
-• onchain (not on-chain or on chain)
-• Defi or defi (never DeFi)
-• Permapod (never PermaPod)
-• onchain credit market (not just "lending protocol")
-• supply / borrow (preferred over lend / borrow)
+- onchain (not on-chain or on chain)
+- Defi or defi (never DeFi)
+- Permapod (never PermaPod)
+- onchain credit market (not just "lending protocol")
+- supply / borrow (preferred over lend / borrow)
 
 ✅ *Always connect to:*
-• Onchain credit, productive capital
-• Lending, borrowing, collateral, liquidity
-• Market activity, credit activity
+- Onchain credit, productive capital
+- Lending, borrowing, collateral, liquidity
+- Market activity, credit activity
 
 ❌ *Never say:*
-• Guaranteed yield / risk-free / safe yield
-• Fixed APY unless confirmed live
-• RWA / tokenized equities as live features
-• No loss possible / no risk
-• Collateralized markets as live (if not)
-• Unconfirmed roadmap as live
-• Em dashes (—)
-• "idle" (use "sitting still" instead)
-• "the stock protocol"
-• "we support every asset class" unless confirmed
-• "Blip Blop is the onchain credit market"
+- Guaranteed yield / risk-free / safe yield
+- Fixed APY unless confirmed live
+- RWA / tokenized equities as live features
+- No loss possible / no risk
+- Collateralized markets as live (if not)
+- Unconfirmed roadmap as live
+- Em dashes (-)
+- "idle" (use "sitting still" instead)
+- "the stock protocol"
+- "we support every asset class" unless confirmed
+- "Blip Blop is the onchain credit market"
 
 📊 *Feature canon:*
-• Assets live: $ZIG, stZIG, USDC
-• solvBTC: only if confirmed live
-• USDC APY: always "up to ~X%", never guaranteed
-• stZIG caps: explain via market balance, never blame borrowers
-• Lending Benchmark: Morpho + Maple excluded
+- Assets live: $ZIG, stZIG, USDC
+- solvBTC: only if confirmed live
+- USDC APY: always "up to ~X%", never guaranteed
+- stZIG caps: explain via market balance, never blame borrowers
+- Lending Benchmark: Morpho + Maple excluded
 
 🪝 *Strong hooks:*
-• Idle capital is a missed opportunity.
-• The APY matters. The source matters more.
-• Capital should work, not wait.
-• Stablecoins deserve better utility.
+- Idle capital is a missed opportunity.
+- The APY matters. The source matters more.
+- Capital should work, not wait.
+- Stablecoins deserve better utility.
 
 💬 *Strong closers:*
-• That is the market Permapod is building.
-• Capital should be productive.
-• Onchain lending is only getting started.
-• Permapod is building that layer on ZIGChain.
+- That is the market Permapod is building.
+- Capital should be productive.
+- Onchain lending is only getting started.
+- Permapod is building that layer on ZIGChain.
 
 ⚠️ *Risk language:*
-• Never fixed APY → say "APY may change"
-• Never no risk → say "lending carries risk"
-• Refer to docs: permapod.gitbook.io/home
+- Never fixed APY -> say "APY may change"
+- Never no risk -> say "lending carries risk"
+- Refer to docs: permapod.gitbook.io/home
 
 📣 *CTA lines:*
-• General: app.permapod.xyz
-• USDC: Put your USDC to work: app.permapod.xyz
-• Points: Make your last moves count: app.permapod.xyz
-• Analytics: Try it now: app.permapod.xyz/analytics"""
+- General: app.permapod.xyz
+- USDC: Put your USDC to work: app.permapod.xyz
+- Points: Make your last moves count: app.permapod.xyz
+- Analytics: Try it now: app.permapod.xyz/analytics"""
 
 HOOK_MAP = {
     "hook_ai": "ai",
@@ -321,22 +398,92 @@ CLOSING_MAP = {
     "closing_5":  "Permapod is building that layer on ZIGChain.",
 }
 
-# ── HELPERS ──────────────────────────────────────
+NAWA_BRAND_RULES = """*Brand Rules - Nawa*
+
+*Positioning:*
+- Vault infrastructure for ethical finance
+- Shariah-certified, asset-backed yield onchain
+- Yield connected to real-world economic activity
+- Ethical capital needs structure, not only access
+
+*Always connect to:*
+- Structure and yield source
+- Traceable returns
+- Real activity and asset-backed strategies
+- Reviewed strategies before capital moves
+- Stablecoin productivity through aligned infrastructure
+
+*Voice:*
+- Calm, sharp, premium, semi-institutional
+- Human, clear, educational, values-driven
+- Confident without hype
+
+*Never say:*
+- Guaranteed returns / risk-free / safe returns
+- Insane APY / massive gains / easy money
+- Yield farming made halal
+- Halal passive income
+- Game changer / revolutionary / don't miss out
+- All RWAs are ethical
+- Nawa makes defi halal
+- Shariah compliance as a label added after the fact
+
+*Strong lines:*
+- Yield should be traceable before it is attractive.
+- Access is not enough for ethical capital.
+- Ethical yield is not a label. It is a structure.
+- Compliance is not decoration. It is infrastructure.
+- The investor was never missing. The structure was.
+
+*CTA style:*
+- Deposit now: nawa.finance
+- Deposit into the Nawa USDC Vault: nawa.finance
+- Explore the Nawa USDC Vault: nawa.finance
+- Put your USDC to work through Nawa: nawa.finance"""
+
+# -- HELPERS --------------------------------------
 
 def back_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🏠 Main menu", callback_data="back_menu")]
     ])
 
-async def send_main_menu(update: Update, text="What would you like to create?"):
-    content = f"🏠 *Permapod Content Manager*\n\n{text}"
+
+def _brand(uid: int) -> str:
+    return session.get(uid).get("brand") or "permapod"
+
+
+def _brand_rules(brand: str) -> str:
+    return NAWA_BRAND_RULES if brand == "nawa" else BRAND_RULES
+
+
+def _system_prompt(brand: str) -> str:
+    return NAWA_SYSTEM_PROMPT if brand == "nawa" else SYSTEM_PROMPT
+
+
+async def send_brand_menu(update: Update, text="Choose a brand to manage:"):
+    content = f"🏠 *Content Manager*\n\n{text}"
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            content, reply_markup=kb.main_menu(), parse_mode=ParseMode.MARKDOWN,
+            content, reply_markup=kb.brand_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
     else:
         await update.message.reply_text(
-            content, reply_markup=kb.main_menu(), parse_mode=ParseMode.MARKDOWN,
+            content, reply_markup=kb.brand_keyboard(), parse_mode=ParseMode.MARKDOWN,
+        )
+
+
+async def send_main_menu(update: Update, text="What would you like to create?"):
+    brand = _brand(update.effective_user.id)
+    icon = "🌿" if brand == "nawa" else "🟣"
+    content = f"{icon} *{brand_name(brand)} Content Manager*\n\n{text}"
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            content, reply_markup=kb.main_menu(brand), parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await update.message.reply_text(
+            content, reply_markup=kb.main_menu(brand), parse_mode=ParseMode.MARKDOWN,
         )
 
 def _parse_tweets(result: str) -> tuple[str, str]:
@@ -368,87 +515,104 @@ def _format_result(result: str, flow: str) -> tuple[str, object]:
     Shows both tweets with approve buttons and total character count.
     """
     char_count = len(result)
-    text = f"✨ *Generated:*\n\n{result}\n\n_{char_count} chars total_"
+    text = f"✨ *Generated:*\n\n{_md(result)}\n\n_{char_count} chars total_"
     return text, kb.after_gen_keyboard(flow)
 
 
-def _build_dynamic_system_prompt(voice: str = None, pillar: str = None) -> str:
-    """
-    Build the final system prompt by appending approved tweet examples.
-    Uses ChromaDB semantic search when available, falls back to SQL query.
-    Always returns a valid prompt even if no examples exist yet.
-    """
-    base = SYSTEM_PROMPT
+def _md(text: object) -> str:
+    return escape_markdown(str(text or ""), version=1)
 
-    query = f"{voice or ''} {pillar or ''} Permapod tweet".strip()
-    examples = search_similar(query=query, voice=voice, pillar=pillar, n=3)
+
+def _build_dynamic_system_prompt(brand: str = "permapod", voice: str = None, pillar: str = None) -> str:
+    """
+    Build the final system prompt by appending approved examples for the selected brand only.
+    ChromaDB is tried first, then PostgreSQL fallback.
+    """
+    brand = brand or "permapod"
+    base = _system_prompt(brand)
+
+    query = f"{brand_name(brand)} {voice or ''} {pillar or ''} tweet".strip()
+    examples = search_similar(query=query, brand=brand, voice=voice, pillar=pillar, n=3)
 
     if not examples:
-        examples = get_approved_examples(voice=voice, pillar=pillar, limit=3)
+        examples = get_approved_examples(brand=brand, voice=voice, pillar=pillar, limit=3)
 
     if not examples:
         return base
 
     example_block = "\n".join(f"- {t}" for t in examples)
     injection = (
-        "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "SECTION 14 — PREVIOUSLY APPROVED TWEET EXAMPLES\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "These tweets have been reviewed and approved by the Permapod team. "
-        "Use them as quality and style references — match this standard:\n\n"
+        "\n\nSECTION 14 - PREVIOUSLY APPROVED TWEET EXAMPLES\n\n"
+        f"These tweets were reviewed and approved for {brand_name(brand)}. "
+        "Use them as quality and style references without copying them:\n\n"
         f"{example_block}"
     )
     return base + injection
-
 
 def _format_count_lines(stats: dict, key: str, labels: list[tuple[str, str]]) -> str:
     values = stats.get(key, {})
     return "\n".join(f"- {label}: {values.get(value, 0)}" for value, label in labels)
 
 
-def _format_content_stats(stats: dict) -> str:
-    voice_labels = [
-        ("protocol", "Protocol"),
-        ("blipblop", "Blip Blop"),
-    ]
-    flow_labels = [
-        ("post", "New Post"),
-        ("reply", "Reply"),
-        ("repost", "Repost"),
-        ("trend", "Trend/Image"),
-    ]
-    pillar_labels = [
-        ("lending", "Lending"),
-        ("stablecoin", "Stablecoin"),
-        ("zigchain", "ZIGChain"),
-        ("credit", "Credit"),
-        ("education", "Education"),
-        ("benchmark", "Benchmark"),
-        ("demand", "Demand"),
-        ("blipblop", "Blip Blop"),
-    ]
+def _format_content_stats(stats: dict, brand: str | None = None) -> str:
+    brand = brand or "all"
+    if brand == "nawa":
+        voice_labels = [("brand", "Brand"), ("educational", "Educational"), ("conversion", "Conversion"), ("qrt", "QRT")]
+        pillar_labels = [
+            ("stablecoin", "Stablecoin Productivity"),
+            ("yield_source", "Yield Source"),
+            ("shariah_structure", "Shariah Structure"),
+            ("rwa", "RWAs"),
+            ("access", "Access"),
+            ("transparency", "Transparency"),
+            ("ethical_capital", "Ethical Capital"),
+        ]
+        title = "Nawa Content Stats"
+    elif brand == "permapod":
+        voice_labels = [("protocol", "Protocol"), ("blipblop", "Blip Blop")]
+        pillar_labels = [
+            ("lending", "Lending"),
+            ("stablecoin", "Stablecoin"),
+            ("zigchain", "ZIGChain"),
+            ("credit", "Credit"),
+            ("education", "Education"),
+            ("benchmark", "Benchmark"),
+            ("demand", "Demand"),
+            ("blipblop", "Blip Blop"),
+        ]
+        title = "Permapod Content Stats"
+    else:
+        voice_labels = [(k, k.title()) for k in sorted(stats.get("by_voice", {}).keys())]
+        pillar_labels = [(k, k.title()) for k in sorted(stats.get("by_pillar", {}).keys())]
+        title = "Content Stats"
 
+    flow_labels = [("post", "New Post"), ("reply", "Reply"), ("repost", "Repost"), ("trend", "Trend/Image")]
+    brand_labels = [("permapod", "Permapod"), ("nawa", "Nawa")]
     by_time = stats.get("by_time", {})
     tweet_preference = stats.get("tweet_preference", {})
 
+    brand_section = ""
+    if brand == "all":
+        brand_section = "*By Brand:*\n" + _format_count_lines(stats, "by_brand", brand_labels) + "\n\n"
+
     return (
-        "📊 *Permapod Content Stats*\n\n"
+        f"*{title}*\n\n"
         f"Total approved tweets: {stats.get('total', 0)}\n\n"
-        "🎙️ *By Voice:*\n"
+        f"{brand_section}"
+        "*By Voice:*\n"
         f"{_format_count_lines(stats, 'by_voice', voice_labels)}\n\n"
-        "📋 *By Flow:*\n"
+        "*By Flow:*\n"
         f"{_format_count_lines(stats, 'by_flow', flow_labels)}\n\n"
-        "🏦 *By Pillar:*\n"
+        "*By Pillar:*\n"
         f"{_format_count_lines(stats, 'by_pillar', pillar_labels)}\n\n"
-        "📅 *By Time:*\n"
+        "*By Time:*\n"
         f"- Today: {by_time.get('today', 0)}\n"
         f"- This week: {by_time.get('week', 0)}\n"
         f"- This month: {by_time.get('month', 0)}\n\n"
-        "🔢 *Tweet preference:*\n"
+        "*Tweet preference:*\n"
         f"- Tweet 1 approved: {tweet_preference.get('1', 0)}\n"
         f"- Tweet 2 approved: {tweet_preference.get('2', 0)}"
     )
-
 
 async def _handle_approve(update: Update, tweet_number: int, flow: str):
     """
@@ -459,6 +623,7 @@ async def _handle_approve(update: Update, tweet_number: int, flow: str):
     uid = update.effective_user.id
     user = update.effective_user
     s = session.get(uid)
+    brand = s.get("brand") or "permapod"
 
     raw_result = s.get("last_result", "")
     if not raw_result:
@@ -473,6 +638,7 @@ async def _handle_approve(update: Update, tweet_number: int, flow: str):
         return
 
     row_id = save_approved_tweet(
+        brand=brand,
         user_id=uid,
         username=user.username or user.first_name or str(uid),
         flow=flow,
@@ -490,12 +656,13 @@ async def _handle_approve(update: Update, tweet_number: int, flow: str):
     )
 
     if row_id is None:
-        await query.answer("DB error — could not save. Try again.", show_alert=True)
+        await query.answer("DB error - could not save. Try again.", show_alert=True)
         return
 
     embed_and_store(
         tweet_id=row_id,
         tweet_text=tweet_text,
+        brand=brand,
         voice=s.get("voice"),
         pillar=s.get("pillar"),
         flow=flow,
@@ -504,10 +671,10 @@ async def _handle_approve(update: Update, tweet_number: int, flow: str):
 
     username_display = f"@{user.username}" if user.username else user.first_name
     confirmation = (
-        f"✅ *Tweet {tweet_number} approved and saved!*\n\n"
-        f"_{tweet_text}_\n\n"
-        f"Saved by {username_display} · flow: {flow} · "
-        f"voice: {s.get('voice', 'n/a')} · pillar: {s.get('pillar', 'n/a')}"
+        f"*Tweet {tweet_number} approved and saved!*\n\n"
+        f"_{_md(tweet_text)}_\n\n"
+        f"Saved by {_md(username_display)} · brand: {_md(brand_name(brand))} · flow: {_md(flow)} · "
+        f"voice: {_md(s.get('voice', 'n/a'))} · pillar: {_md(s.get('pillar', 'n/a'))}"
     )
     await query.edit_message_text(
         confirmation,
@@ -515,25 +682,29 @@ async def _handle_approve(update: Update, tweet_number: int, flow: str):
         parse_mode=ParseMode.MARKDOWN,
     )
 
-# ── START / MENU ──────────────────────────────────
+# -- START / MENU ----------------------------------
 
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     session.reset(update.effective_user.id)
-    await send_main_menu(update, "Welcome to the Permapod X Content Manager.\nChoose what you want to create:")
+    await send_brand_menu(update, "Choose which content system you want to use:")
 
 async def menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    session.reset(update.effective_user.id)
-    await send_main_menu(update)
+    uid = update.effective_user.id
+    if session.get(uid).get("brand"):
+        await send_main_menu(update)
+    else:
+        await send_brand_menu(update)
 
 async def stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    content_stats = get_content_stats()
+    brand = session.get(update.effective_user.id).get("brand")
+    content_stats = get_content_stats(brand=brand)
     await update.message.reply_text(
-        _format_content_stats(content_stats),
+        _format_content_stats(content_stats, brand=brand),
         reply_markup=back_keyboard(),
         parse_mode=ParseMode.MARKDOWN,
     )
 
-# ── CALLBACK ROUTER ───────────────────────────────
+# -- CALLBACK ROUTER -------------------------------
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -541,8 +712,24 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     data = query.data
     uid  = update.effective_user.id
     s    = session.get(uid)
+    brand = s.get("brand") or "permapod"
 
-    # ── Approve callbacks ──────────────────────────
+    if data.startswith("brand_"):
+        selected = data.replace("brand_", "")
+        if selected not in ("permapod", "nawa"):
+            await query.answer("Unknown brand.", show_alert=True)
+            return
+        session.reset(uid)
+        session.update(uid, brand=selected)
+        await send_main_menu(update, f"Welcome to the {brand_name(selected)} Content Manager.\nChoose what you want to create:")
+        return
+
+    if data == "switch_brand":
+        session.reset(uid)
+        await send_brand_menu(update, "Choose which content system you want to use:")
+        return
+
+    # -- Approve callbacks --------------------------
     if data.startswith("approve_"):
         parts = data.split("_", 2)
         if len(parts) == 3:
@@ -551,13 +738,13 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await _handle_approve(update, tweet_number, flow)
         return
 
-    # ── ADD THIS BLOCK: Intercept Back Button ──
+    # -- ADD THIS BLOCK: Intercept Back Button --
     if data == "back_step":
         flow, step = s.get("flow"), s.get("step")
         
         if flow == "post":
             # Reverse lookup for the hook map
-            rev_hook = {v: k for k, v in HOOK_MAP.items()}
+            rev_hook = {v: k for k, v in get_hook_map(brand).items()}
             hook_key = rev_hook.get(s.get("hook"), "hook_ai")
             
             if step == "pillar":  data = "flow_post"
@@ -589,97 +776,101 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             
         else:
             data = "back_menu"
-    # ──────────────────────────────────────────
+# ----------------------------------------------------------------------
 
-    # ── Main flows ──
+    # -- Main flows --
     if data == "flow_post":
         session.set_flow(uid, "post", "voice")
         await query.edit_message_text(
-            "✏️ *New Post — Step 1/5*\n\nChoose brand voice:",
-            reply_markup=kb.voice_keyboard("post_"), parse_mode=ParseMode.MARKDOWN,
+            "✏️ *New Post - Step 1/5*\n\nChoose brand voice:",
+            reply_markup=kb.voice_keyboard("post_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_reply":
         session.set_flow(uid, "reply", "bucket")
         await query.edit_message_text(
-            "💬 *Reply — Step 1/4*\n\nWhich type of post are you replying under?",
-            reply_markup=kb.bucket_keyboard(), parse_mode=ParseMode.MARKDOWN,
+            "💬 *Reply - Step 1/4*\n\nWhich type of post are you replying under?",
+            reply_markup=kb.bucket_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_repost":
         session.set_flow(uid, "repost", "voice")
         await query.edit_message_text(
-            "🔁 *Repost + Comment — Step 1/4*\n\nChoose brand voice:",
-            reply_markup=kb.voice_keyboard("repost_"), parse_mode=ParseMode.MARKDOWN,
+            "🔁 *Repost + Comment - Step 1/4*\n\nChoose brand voice:",
+            reply_markup=kb.voice_keyboard("repost_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_trend":
         session.set_flow(uid, "trend", "mode")
         await query.edit_message_text(
-            "🔥 *Trend / Image — Step 1/5*\n\nChoose input mode:",
+            "🔥 *Trend / Image - Step 1/5*\n\nChoose input mode:",
             reply_markup=kb.trend_mode_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_rules":
         await query.edit_message_text(
-            BRAND_RULES, reply_markup=back_keyboard(), parse_mode=ParseMode.MARKDOWN,
+            _brand_rules(brand), reply_markup=back_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_cadence":
         await query.edit_message_text(
             "📅 *Weekly Content Cadence*\n\nPick a day to auto-set voice and pillar:",
-            reply_markup=kb.cadence_keyboard(), parse_mode=ParseMode.MARKDOWN,
+            reply_markup=kb.cadence_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "flow_history":
-        rows = get_user_history(uid, limit=5)
+        rows = get_user_history(uid, brand=brand, limit=5)
         if not rows:
             text = "📋 *Your Approvals*\n\nNo approved tweets yet."
         else:
             lines = ["📋 *Your Recent Approvals*\n"]
             for r in rows:
                 dt = r["approved_at"].strftime("%d %b %Y") if r["approved_at"] else "n/a"
+                preview = r["tweet_text"][:120]
+                if len(r["tweet_text"]) > 120:
+                    preview += "..."
                 lines.append(
-                    f"*{dt}* · {r['flow']} · {r.get('voice','') or 'n/a'} · {r.get('pillar','') or 'n/a'}\n"
-                    f"_{r['tweet_text'][:120]}{'...' if len(r['tweet_text']) > 120 else ''}_\n"
+                    f"*{_md(dt)}* · {_md(r['flow'])} · {_md(r.get('voice','') or 'n/a')} · {_md(r.get('pillar','') or 'n/a')}\n"
+                    f"_{_md(preview)}_\n"
                 )
             text = "\n".join(lines)
         await query.edit_message_text(
             text, reply_markup=back_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
-
     elif data == "back_menu":
+        current_brand = _brand(uid)
         session.reset(uid)
+        session.update(uid, brand=current_brand)
         await send_main_menu(update)
 
-    # ── POST flow ──
+    # -- POST flow --
     elif data.startswith("post_voice_"):
         v = data.replace("post_voice_", "")
         session.update(uid, voice=v, flow="post", step="pillar")
         await query.edit_message_text(
-            "✏️ *New Post — Step 2/5*\n\nChoose content pillar:",
-            reply_markup=kb.pillar_keyboard("post_"), parse_mode=ParseMode.MARKDOWN,
+            "✏️ *New Post - Step 2/5*\n\nChoose content pillar:",
+            reply_markup=kb.pillar_keyboard("post_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("post_pillar_"):
         p = data.replace("post_pillar_", "")
         session.update(uid, pillar=p, step="hook")
         await query.edit_message_text(
-            "✏️ *New Post — Step 3/5*\n\nChoose opening hook:",
-            reply_markup=kb.hook_keyboard(), parse_mode=ParseMode.MARKDOWN,
+            "✏️ *New Post - Step 3/5*\n\nChoose opening hook:",
+            reply_markup=kb.hook_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("hook_"):
-        session.update(uid, hook=HOOK_MAP.get(data, "ai"), step="closing")
+        session.update(uid, hook=get_hook_map(brand).get(data, "ai"), step="closing")
         await query.edit_message_text(
-            "✏️ *New Post — Step 4/5*\n\nChoose closing line:",
-            reply_markup=kb.closing_keyboard(), parse_mode=ParseMode.MARKDOWN,
+            "✏️ *New Post - Step 4/5*\n\nChoose closing line:",
+            reply_markup=kb.closing_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("closing_"):
-        session.update(uid, closing=CLOSING_MAP.get(data, "ai"), step="context")
+        session.update(uid, closing=get_closing_map(brand).get(data, "ai"), step="context")
         await query.edit_message_text(
-            "✏️ *New Post — Step 5/5*\n\nAny additional context? (optional)\n\nType it or skip:",
+            "✏️ *New Post - Step 5/5*\n\nAny additional context? (optional)\n\nType it or skip:",
             reply_markup=kb.skip_keyboard("skip_post_context"), parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -687,27 +878,27 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         session.update(uid, context="")
         await query.edit_message_text("⏳ Generating 2 tweet options...")
         result = await generate_text(
-            build_post_prompt(s["voice"], s["pillar"], "", s["hook"], s["closing"]),
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            build_post_prompt(s["voice"], s["pillar"], "", s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "post")
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
-    # ── REPLY flow ──
+    # -- REPLY flow --
     elif data.startswith("bucket_"):
         b = data.replace("bucket_", "")
         session.update(uid, bucket=b, step="voice")
         await query.edit_message_text(
-            "💬 *Reply — Step 2/4*\n\nChoose brand voice:",
-            reply_markup=kb.voice_keyboard("reply_"), parse_mode=ParseMode.MARKDOWN,
+            "💬 *Reply - Step 2/4*\n\nChoose brand voice:",
+            reply_markup=kb.voice_keyboard("reply_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("reply_voice_"):
         v = data.replace("reply_voice_", "")
         session.update(uid, voice=v, step="tweet")
         await query.edit_message_text(
-            "💬 *Reply — Step 3/4*\n\nPaste the tweet you're replying to:\n_(or type 'skip')_",
+            "💬 *Reply - Step 3/4*\n\nPaste the tweet you're replying to:\n_(or type 'skip')_",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -717,20 +908,20 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if flow == "reply":
             await query.edit_message_text("⏳ Generating 2 reply options...")
             result = await generate_text(
-                build_reply_prompt(s["voice"], s["bucket"], s["tweet"], ""),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_reply_prompt(s["voice"], s["bucket"], s["tweet"], "", brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "repost":
             await query.edit_message_text("⏳ Generating 2 repost comment options...")
             result = await generate_text(
-                build_repost_prompt(s["voice"], s["pillar"], s["tweet"], ""),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_repost_prompt(s["voice"], s["pillar"], s["tweet"], "", brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "trend":
             await query.edit_message_text("⏳ Generating 2 options from trend...")
             result = await generate_text(
-                build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], ""),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], "", brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         else:
             result = "Unknown flow."
@@ -738,35 +929,35 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         txt, markup = _format_result(result, flow)
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
-    # ── REPOST flow ──
+    # -- REPOST flow --
     elif data.startswith("repost_voice_"):
         v = data.replace("repost_voice_", "")
         session.update(uid, voice=v, step="pillar")
         await query.edit_message_text(
-            "🔁 *Repost + Comment — Step 2/4*\n\nChoose content angle:",
-            reply_markup=kb.pillar_keyboard("repost_"), parse_mode=ParseMode.MARKDOWN,
+            "🔁 *Repost + Comment - Step 2/4*\n\nChoose content angle:",
+            reply_markup=kb.pillar_keyboard("repost_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("repost_pillar_"):
         p = data.replace("repost_pillar_", "")
         session.update(uid, pillar=p, step="tweet")
         await query.edit_message_text(
-            "🔁 *Repost + Comment — Step 3/4*\n\nPaste the tweet you want to repost:\n_(or type 'skip')_",
+            "🔁 *Repost + Comment - Step 3/4*\n\nPaste the tweet you want to repost:\n_(or type 'skip')_",
             parse_mode=ParseMode.MARKDOWN,
         )
 
-    # ── TREND flow ──
+    # -- TREND flow --
     elif data == "timode_trend":
         session.update(uid, step="output_type")
         await query.edit_message_text(
-            "🔥 *Trend — Step 2/5*\n\nWhat type of content to generate?",
+            "🔥 *Trend - Step 2/5*\n\nWhat type of content to generate?",
             reply_markup=kb.output_type_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data == "timode_image":
         session.update(uid, step="image_output_type")
         await query.edit_message_text(
-            "🖼️ *Image — Step 2/5*\n\nWhat type of content to generate?",
+            "🖼️ *Image - Step 2/5*\n\nWhat type of content to generate?",
             reply_markup=kb.output_type_keyboard(), parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -777,14 +968,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if "image" in step:
             session.update(uid, step="voice_image")
             await query.edit_message_text(
-                "🖼️ *Image — Step 3/5*\n\nChoose brand voice:",
-                reply_markup=kb.voice_keyboard("trend_"), parse_mode=ParseMode.MARKDOWN,
+                "🖼️ *Image - Step 3/5*\n\nChoose brand voice:",
+                reply_markup=kb.voice_keyboard("trend_", brand), parse_mode=ParseMode.MARKDOWN,
             )
         else:
             session.update(uid, step="voice_trend")
             await query.edit_message_text(
-                "🔥 *Trend — Step 3/5*\n\nChoose brand voice:",
-                reply_markup=kb.voice_keyboard("trend_"), parse_mode=ParseMode.MARKDOWN,
+                "🔥 *Trend - Step 3/5*\n\nChoose brand voice:",
+                reply_markup=kb.voice_keyboard("trend_", brand), parse_mode=ParseMode.MARKDOWN,
             )
 
     elif data.startswith("trend_voice_"):
@@ -793,8 +984,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         step = s.get("step", "")
         session.update(uid, step="pillar_image" if "image" in step else "pillar_trend")
         await query.edit_message_text(
-            "🔥 *Trend — Step 4/5*\n\nChoose content angle:",
-            reply_markup=kb.pillar_keyboard("trend_"), parse_mode=ParseMode.MARKDOWN,
+            "🔥 *Trend - Step 4/5*\n\nChoose content angle:",
+            reply_markup=kb.pillar_keyboard("trend_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("trend_pillar_"):
@@ -804,72 +995,73 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if "image" in step:
             session.update(uid, step="awaiting_image")
             await query.edit_message_text(
-                "🖼️ *Image — Step 5/5*\n\nSend me the screenshot now:\n_(send as photo or file)_",
+                "🖼️ *Image - Step 5/5*\n\nSend me the screenshot now:\n_(send as photo or file)_",
                 parse_mode=ParseMode.MARKDOWN,
             )
         else:
             session.update(uid, step="trend_input")
             await query.edit_message_text(
-                "🔥 *Trend — Step 5/5*\n\nPaste the trending topic or tweet:",
+                "🔥 *Trend - Step 5/5*\n\nPaste the trending topic or tweet:",
                 parse_mode=ParseMode.MARKDOWN,
             )
 
-    # ── IMAGE context skip ──
+    # -- IMAGE context skip --
     elif data == "skip_image_context":
         session.update(uid, context="")
         await query.edit_message_text("⏳ Generating 2 options from image...")
         s = session.get(uid)
         result = await generate_vision(
-            build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], ""),
+            build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], "", brand=s.get("brand") or "permapod"),
             s["image_b64"], s["image_mime"],
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
-    # ── CADENCE ──
+    # -- CADENCE --
     elif data.startswith("cadence_"):
         day = data.replace("cadence_", "")
-        if day in WEEKLY_CADENCE:
-            label, voice, pillar = WEEKLY_CADENCE[day]
+        cadence = get_weekly_cadence(brand)
+        if day in cadence:
+            label, voice, pillar = cadence[day]
             session.update(uid, voice=voice, pillar=pillar, flow="post", step="hook")
             await query.edit_message_text(
-                f"📅 *{label}* — voice and pillar set!\n\nNow choose opening hook:",
-                reply_markup=kb.hook_keyboard(), parse_mode=ParseMode.MARKDOWN,
+                f"📅 *{label}* - voice and pillar set!\n\nNow choose opening hook:",
+                reply_markup=kb.hook_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
             )
 
-    # ── REGENERATE ──
+    # -- REGENERATE --
     elif data.startswith("regen_"):
         flow = data.replace("regen_", "")
         s = session.get(uid)
         await query.edit_message_text("⏳ Regenerating 2 options...")
         if flow == "post":
             result = await generate_text(
-                build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"]),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "reply":
             result = await generate_text(
-                build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"]),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"], brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "repost":
             result = await generate_text(
-                build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"]),
-                system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"], brand=s.get("brand") or "permapod"),
+                system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "trend":
             if s.get("image_b64"):
                 result = await generate_vision(
-                    build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"]),
+                    build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"], brand=s.get("brand") or "permapod"),
                     s["image_b64"], s["image_mime"],
-                    system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                    system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
                 )
             else:
                 result = await generate_text(
-                    build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"]),
-                    system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+                    build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"], brand=s.get("brand") or "permapod"),
+                    system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
                 )
         else:
             result = "Unknown flow."
@@ -878,11 +1070,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
 
-# ── MESSAGE HANDLER ───────────────────────────────
+# -- MESSAGE HANDLER -------------------------------
 
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid  = update.effective_user.id
     s    = session.get(uid)
+    brand = s.get("brand") or "permapod"
     text = update.message.text.strip()
     step = s.get("step")
     flow = s.get("flow")
@@ -893,76 +1086,76 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text("⏳ Generating 2 tweet options...")
         s = session.get(uid)
         result = await generate_text(
-            build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"]),
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "post")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
 
-    # Reply — tweet input
+    # Reply - tweet input
     if flow == "reply" and step == "tweet":
         session.update(uid, tweet="" if text.lower() == "skip" else text, step="context")
         await update.message.reply_text(
-            "💬 *Reply — Step 4/4*\n\nAny additional context? (optional)\n\nType it or skip:",
+            "💬 *Reply - Step 4/4*\n\nAny additional context? (optional)\n\nType it or skip:",
             reply_markup=kb.skip_keyboard("skip_context"), parse_mode=ParseMode.MARKDOWN,
         )
         return
 
-    # Reply — context input
+    # Reply - context input
     if flow == "reply" and step == "context":
         session.update(uid, context="" if text.lower() == "skip" else text)
         msg = await update.message.reply_text("⏳ Generating 2 reply options...")
         s = session.get(uid)
         result = await generate_text(
-            build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"]),
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            build_reply_prompt(s["voice"], s["bucket"], s["tweet"], s["context"], brand=s.get("brand") or "permapod"),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "reply")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
 
-    # Repost — tweet input
+    # Repost - tweet input
     if flow == "repost" and step == "tweet":
         session.update(uid, tweet="" if text.lower() == "skip" else text, step="context")
         await update.message.reply_text(
-            "🔁 *Repost — Step 4/4*\n\nYour specific take? (optional)\n\nType it or skip:",
+            "🔁 *Repost - Step 4/4*\n\nYour specific take? (optional)\n\nType it or skip:",
             reply_markup=kb.skip_keyboard("skip_context"), parse_mode=ParseMode.MARKDOWN,
         )
         return
 
-    # Repost — context input
+    # Repost - context input
     if flow == "repost" and step == "context":
         session.update(uid, context="" if text.lower() == "skip" else text)
         msg = await update.message.reply_text("⏳ Generating 2 repost comment options...")
         s = session.get(uid)
         result = await generate_text(
-            build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"]),
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            build_repost_prompt(s["voice"], s["pillar"], s["tweet"], s["context"], brand=s.get("brand") or "permapod"),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "repost")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
 
-    # Image — context input after image received
+    # Image - context input after image received
     if flow == "trend" and step == "context_image":
         session.update(uid, context="" if text.lower() == "skip" else text)
         msg = await update.message.reply_text("⏳ Generating 2 options from image...")
         s = session.get(uid)
         result = await generate_vision(
-            build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"]),
+            build_trend_prompt(s["voice"], s["pillar"], "", s["output_type"], s["context"], brand=s.get("brand") or "permapod"),
             s["image_b64"], s["image_mime"],
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
         await msg.edit_text(txt, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
         return
 
-    # Trend — trend text input
+    # Trend - trend text input
     if flow == "trend" and step == "trend_input":
         session.update(uid, trend=text, step="context")
         await update.message.reply_text(
@@ -971,14 +1164,14 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Trend — context input
+    # Trend - context input
     if flow == "trend" and step == "context":
         session.update(uid, context="" if text.lower() == "skip" else text)
         msg = await update.message.reply_text("⏳ Generating 2 options from trend...")
         s = session.get(uid)
         result = await generate_text(
-            build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"]),
-            system=_build_dynamic_system_prompt(s.get("voice"), s.get("pillar")),
+            build_trend_prompt(s["voice"], s["pillar"], s["trend"], s["output_type"], s["context"], brand=s.get("brand") or "permapod"),
+            system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
         txt, markup = _format_result(result, "trend")
@@ -987,11 +1180,11 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     # Default
     await update.message.reply_text(
-        "Use /menu to start.", reply_markup=kb.main_menu(),
+        "Use /menu to start.", reply_markup=kb.main_menu(brand),
     )
 
 
-# ── PHOTO / DOCUMENT HANDLER ──────────────────────
+# -- PHOTO / DOCUMENT HANDLER ----------------------
 
 async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id

@@ -57,6 +57,7 @@ def _get_collection():
 def embed_and_store(
     tweet_id:   int,
     tweet_text: str,
+    brand:      str = "permapod",
     voice:      Optional[str] = None,
     pillar:     Optional[str] = None,
     flow:       Optional[str] = None,
@@ -78,6 +79,7 @@ def embed_and_store(
             ids=[str(tweet_id)],
             documents=[tweet_text],
             metadatas=[{
+                "brand":  brand  or "permapod",
                 "voice":  voice  or "",
                 "pillar": pillar or "",
                 "flow":   flow   or "",
@@ -93,6 +95,7 @@ def embed_and_store(
 
 def search_similar(
     query:  str,
+    brand:  str = "permapod",
     voice:  Optional[str] = None,
     pillar: Optional[str] = None,
     n:      int = 3,
@@ -119,13 +122,12 @@ def search_similar(
         return []
 
     # Build metadata filter
-    where: Optional[dict] = None
-    if voice and pillar:
-        where = {"$and": [{"voice": voice}, {"pillar": pillar}]}
-    elif voice:
-        where = {"voice": voice}
-    elif pillar:
-        where = {"pillar": pillar}
+    filters = [{"brand": brand or "permapod"}]
+    if voice:
+        filters.append({"voice": voice})
+    if pillar:
+        filters.append({"pillar": pillar})
+    where: Optional[dict] = filters[0] if len(filters) == 1 else {"$and": filters}
 
     # Clamp n to available count
     n_results = min(n, count)

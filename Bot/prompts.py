@@ -1,226 +1,337 @@
-# ═══════════════════════════════════════════════
-# prompts.py — All Permapod AI prompts
-# ═══════════════════════════════════════════════
-#
-# NOTE: The master SYSTEM_PROMPT lives in handlers.py and is passed
-# into every generate_text / generate_vision call via the system= kwarg.
-# The SYSTEM_PROMPT constant below is kept as a fallback reference only
-# and should NOT be used directly — handlers.py always overrides it.
-# ═══════════════════════════════════════════════
+BRAND_NAMES = {
+    "permapod": "Permapod",
+    "nawa": "Nawa",
+}
 
-# ── VOICE INSTRUCTIONS ──────────────────────────
+
 VOICE_INSTRUCTIONS = {
-    "protocol": (
-        "Use Protocol Voice: grounded, clear, direct, transparent, quietly confident, "
-        "data-led when possible, not overhyped. Short punchy lines. Vary rhythm — mix "
-        "short lines with one slightly longer observation. No exclamation marks. No hype "
-        "language. No em dashes. Do not sound too corporate, too cute, too degen, too "
-        "formal, too technical, or too vague. Sound like a sharp human, not a bot."
-    ),
-    "blipblop": (
-        "Use Blip Blop Voice: write as the Blip Blop character in third person. Warm, "
-        "punchy, slightly robotic, builder-coded, short, lightly playful, not cringe. "
-        "2-3 short punchy lines. No em dashes. Add 🤖 at the very end. "
-        "Use approved Blip Blop phrases where natural: 'Blip Blop ran the numbers', "
-        "'Blip Blop checked the leaderboard', 'Blip Blop checked the wiring', "
-        "'systems nominal', 'back to building', 'beep', "
-        "'Blip Blop sees the bigger picture', 'Blip Blop ran diagnostics'. "
-        "Do NOT say 'Blip Blop is the onchain credit market'."
-    ),
+    "permapod": {
+        "protocol": (
+            "Use Protocol Voice: grounded, clear, direct, transparent, quietly confident, "
+            "data-led when possible, not overhyped. Short punchy lines. Vary rhythm. "
+            "No exclamation marks. No hype language. No em dashes. Do not sound too corporate, "
+            "too cute, too degen, too formal, too technical, or too vague."
+        ),
+        "blipblop": (
+            "Use Blip Blop Voice: write as the Blip Blop character in third person. Warm, "
+            "punchy, slightly robotic, builder-coded, short, lightly playful, not cringe. "
+            "2-3 short punchy lines. No em dashes. Add the robot emoji at the very end. "
+            "Use approved Blip Blop phrases where natural: 'Blip Blop ran the numbers', "
+            "'Blip Blop checked the leaderboard', 'Blip Blop checked the wiring', "
+            "'systems nominal', 'back to building', 'beep'. "
+            "Do NOT say 'Blip Blop is the onchain credit market'."
+        ),
+    },
+    "nawa": {
+        "brand": (
+            "Use Nawa Brand Voice: calm, premium, semi-institutional, human, sharp, "
+            "values-driven, and structured. Sound like a thoughtful financial operator "
+            "explaining why the structure behind yield matters. Never sound hypey, degen, "
+            "preachy, overly religious, or like a bank advertisement."
+        ),
+        "educational": (
+            "Use Nawa Educational Voice: clear, measured, and useful. Explain one idea "
+            "about yield source, Shariah-certified structure, real activity, traceability, "
+            "RWAs, or ethical capital. Do not over-explain or sound academic."
+        ),
+        "conversion": (
+            "Use Nawa Conversion Voice: calm and direct. Encourage action without pressure. "
+            "Focus on the Nawa USDC Vault, stablecoin productivity, certified strategies, "
+            "asset-backed yield, real-world economic activity, and liquidity from the start. "
+            "Never imply guaranteed, risk-free, safe, or passive returns."
+        ),
+        "qrt": (
+            "Use Nawa QRT Voice: interpret the source post through Nawa's lens without "
+            "copying the announcement or making everything about Nawa. Connect the topic "
+            "to access, structure, RWAs, real-world yield, source transparency, and aligned capital."
+        ),
+    },
 }
 
-# ── PILLAR INSTRUCTIONS ──────────────────────────
+
 PILLAR_INSTRUCTIONS = {
-    "lending": (
-        "Pillar focus: onchain lending markets, liquidity, productive capital deployment, "
-        "lending infrastructure. Themes: what is onchain credit, why borrowing matters, "
-        "how lending and borrowing work together, why utilization matters, "
-        "why TVL alone is not the full story, how capital becomes productive. "
-        "Example angle: Supply adds liquidity. Borrowing activates it. "
-        "That balance is what keeps an onchain credit market healthy."
-    ),
-    "stablecoin": (
-        "Pillar focus: stablecoins put to work in lending markets instead of sitting still. "
-        "USDC should not sit in a wallet. Connect APY to real borrowing demand, not just the number. "
-        "If referencing APY, always say 'up to ~X%' and note APY may change. "
-        "Never use guaranteed yield language."
-    ),
-    "demand": (
-        "Pillar focus: yield comes from real lending activity and market demand. "
-        "The source of APY matters more than the number itself. "
-        "APY reflects borrowing demand. TVL is a signal, credit is the story. "
-        "Ranking validates market activity. Stablecoin capital is finding productive use."
-    ),
-    "credit": (
-        "Pillar focus: Permapod as a financial primitive and credit infrastructure layer, "
-        "bigger than a single app. Lending is the first layer, credit is the larger system. "
-        "Strong ecosystems need more than assets — they need lending, liquidity, and financial infrastructure."
-    ),
-    "zigchain": (
-        "Pillar focus: Permapod contributing lending and credit primitives to ZIGChain. "
-        "Strong ecosystems need lending infrastructure. More liquidity means deeper markets. "
-        "More assets onchain means more future utility. Credit markets become more important "
-        "as asset bases grow. Do not overclaim direct integration with Ondo or RWAs unless confirmed live. "
-        "For ZIGChain x Ondo content: be vague, talk about what more assets onchain can enable over time."
-    ),
-    "education": (
-        "Pillar focus: explain one clear aspect of what Permapod does in simple terms. "
-        "Themes: what is onchain credit, why borrowing matters, why supply caps exist, "
-        "how lending and borrowing work together, what health factor means, "
-        "why utilization matters, why TVL alone is not the full story, "
-        "how capital becomes productive. "
-        "Example: Supply adds liquidity. Borrowing activates it. "
-        "That balance is what keeps an onchain credit market healthy."
-    ),
-    "benchmark": (
-        "Pillar focus: reference lending activity, participation, rankings, or growth. "
-        "Do not state specific APY unless confirmed current. "
-        "Lending Benchmark is available in Analytics — lets users compare USDC lending markets "
-        "across top protocols (Morpho and Maple excluded). Metrics: Base APY, TVL, 30D growth. "
-        "Data from DeFiLlama. Narrative: better context, users should not need 12 tabs, "
-        "compare before you supply. TVL is a signal. APY reflects borrowing demand. "
-        "Ranking validates market activity."
-    ),
-    "blipblop": (
-        "Pillar focus: use the Blip Blop mascot voice. Observational, playful, community-native. "
-        "Suitable for: points reminders, leaderboard posts, community updates, light milestones, "
-        "educational whiteboard posts, playful QRTs, ecosystem reactions. "
-        "Blip Blop is a mascot, not the protocol itself."
-    ),
+    "permapod": {
+        "lending": (
+            "Pillar focus: onchain lending markets, liquidity, productive capital deployment, "
+            "lending infrastructure. Themes: what is onchain credit, why borrowing matters, "
+            "how lending and borrowing work together, why utilization matters, why TVL alone "
+            "is not the full story, how capital becomes productive."
+        ),
+        "stablecoin": (
+            "Pillar focus: stablecoins put to work in lending markets instead of sitting still. "
+            "USDC should not sit in a wallet. Connect APY to real borrowing demand, not just the number. "
+            "If referencing APY, always say 'up to ~X%' and note APY may change."
+        ),
+        "demand": (
+            "Pillar focus: yield comes from real lending activity and market demand. "
+            "The source of APY matters more than the number itself. APY reflects borrowing demand. "
+            "TVL is a signal, credit is the story."
+        ),
+        "credit": (
+            "Pillar focus: Permapod as a financial primitive and credit infrastructure layer. "
+            "Lending is the first layer, credit is the larger system."
+        ),
+        "zigchain": (
+            "Pillar focus: Permapod contributing lending and credit primitives to ZIGChain. "
+            "Strong ecosystems need lending infrastructure. Do not overclaim direct RWA integrations."
+        ),
+        "education": (
+            "Pillar focus: explain one clear aspect of what Permapod does in simple terms. "
+            "Themes: onchain credit, borrowing, supply caps, health factor, utilization, TVL, and productive capital."
+        ),
+        "benchmark": (
+            "Pillar focus: reference lending activity, participation, rankings, or growth. "
+            "Do not state specific APY unless confirmed current. Lending Benchmark is available in Analytics."
+        ),
+        "blipblop": (
+            "Pillar focus: use the Blip Blop mascot voice for points reminders, leaderboard posts, "
+            "community updates, light milestones, educational whiteboard posts, and playful QRTs."
+        ),
+    },
+    "nawa": {
+        "stablecoin": (
+            "Pillar focus: Stablecoin Productivity. Stablecoins helped ethical investors preserve value. "
+            "Nawa helps USDC become productive through Shariah-certified, asset-backed yield structures. "
+            "Ethical investors should not have to choose between productivity and principles."
+        ),
+        "yield_source": (
+            "Pillar focus: Yield Source Education. APY is only half the story. The source, mechanics, "
+            "structure, asset backing, and connection to real activity matter before yield becomes attractive."
+        ),
+        "shariah_structure": (
+            "Pillar focus: Shariah Compliance Is Structure, Not A Label. Compliance cannot be added at the end. "
+            "The strategy, assets, return mechanics, risk treatment, and review process must shape the vault before capital moves."
+        ),
+        "rwa": (
+            "Pillar focus: RWAs And Ethical Finance. RWAs are not automatically ethical, but assets, activity, "
+            "and traceable return sources naturally align with Islamic finance principles when structured properly."
+        ),
+        "access": (
+            "Pillar focus: Access Is Not Enough. Ethical capital needs aligned access. Investors were not missing "
+            "from onchain yield because they lacked interest. The infrastructure did not match their standards."
+        ),
+        "transparency": (
+            "Pillar focus: Onchain Transparency And Ethical Finance. Blockchain matters for ethical capital because "
+            "capital movement, vault mechanics, review, and yield sources can become more traceable."
+        ),
+        "ethical_capital": (
+            "Pillar focus: Ethical Capital As A Distinct Market. Some capital has mandates, values, and principles. "
+            "Nawa exists because ethical capital needs infrastructure built around how it is allowed to move."
+        ),
+    },
 }
 
-# ── REPLY BUCKET ANGLES ──────────────────────────
+
 BUCKET_ANGLES = {
-    "stablecoin": (
-        "Replying under a stablecoin post. Angle: stablecoin supply is only one side of the story. "
-        "The stronger question is where lending demand comes from. "
-        "Connect to the onchain credit market and productive capital."
-    ),
-    "defi": (
-        "Replying under a Defi yield post. Angle: the APY number gets attention but the source "
-        "of yield determines long-term sustainability. "
-        "Always write 'Defi' or 'defi' — never 'DeFi'."
-    ),
-    "zig": (
-        "Replying under a ZIGChain ecosystem post. Angle: strong ecosystems need lending primitives "
-        "and financial infrastructure. More liquidity means deeper markets. "
-        "More assets onchain means more future utility for the credit market."
-    ),
-    "mention": (
-        "Replying to a direct Permapod mention. Angle: appreciate the mention, stay focused. "
-        "Reinforce that Permapod is building useful onchain credit infrastructure. "
-        "Keep it grounded and product-led."
-    ),
+    "permapod": {
+        "stablecoin": "Replying under a stablecoin post. Angle: stablecoin supply is only one side of the story. Connect to onchain credit and productive capital.",
+        "defi": "Replying under a Defi yield post. Angle: the APY number gets attention but the source of yield determines sustainability.",
+        "zig": "Replying under a ZIGChain ecosystem post. Angle: strong ecosystems need lending primitives and financial infrastructure.",
+        "mention": "Replying to a direct Permapod mention. Appreciate the mention and reinforce useful onchain credit infrastructure.",
+    },
+    "nawa": {
+        "stablecoin": "Replying under a stablecoin post. Angle: stablecoins can become productive only when the yield path aligns with ethical capital.",
+        "rwa": "Replying under an RWA post. Angle: RWAs move the market toward assets and activity, but structure still decides suitability for ethical capital.",
+        "defi": "Replying under a Defi yield post. Angle: APY is not enough. Source, mechanics, leverage, and structure matter.",
+        "zig": "Replying under a ZIGChain post. Angle: access matters, but aligned infrastructure lets ethical capital participate without compromising how it moves.",
+        "ethical": "Replying under ethical or Islamic finance content. Angle: principles need modern rails, but compliance has to shape the product before capital moves.",
+        "mention": "Replying to a direct Nawa mention. Stay calm, helpful, and focused on certified structure, real activity, and traceable yield sources.",
+    },
 }
 
-# ── WEEKLY CADENCE ───────────────────────────────
+
 WEEKLY_CADENCE = {
-    "mon": ("Market Thesis",     "protocol", "lending"),
-    "tue": ("Product Education", "protocol", "education"),
-    "wed": ("Blip Blop Post",    "blipblop", "blipblop"),
-    "thu": ("Ecosystem",         "protocol", "zigchain"),
-    "fri": ("Benchmark",         "protocol", "benchmark"),
-    "sat": ("Community",         "blipblop", "blipblop"),
-    "sun": ("Narrative",         "protocol", "credit"),
+    "permapod": {
+        "mon": ("Market Thesis", "protocol", "lending"),
+        "tue": ("Product Education", "protocol", "education"),
+        "wed": ("Blip Blop Post", "blipblop", "blipblop"),
+        "thu": ("Ecosystem", "protocol", "zigchain"),
+        "fri": ("Benchmark", "protocol", "benchmark"),
+        "sat": ("Community", "blipblop", "blipblop"),
+        "sun": ("Narrative", "protocol", "credit"),
+    },
+    "nawa": {
+        "mon": ("Yield Source Education", "educational", "yield_source"),
+        "tue": ("Stablecoin Productivity", "brand", "stablecoin"),
+        "wed": ("Shariah Structure", "educational", "shariah_structure"),
+        "thu": ("RWAs And Ethical Finance", "qrt", "rwa"),
+        "fri": ("USDC Vault Conversion", "conversion", "stablecoin"),
+        "sat": ("Ethical Capital", "brand", "ethical_capital"),
+        "sun": ("Principle-Led Narrative", "brand", "access"),
+    },
 }
 
-# ── MESSAGE BUILDERS ─────────────────────────────
 
-def build_post_prompt(voice, pillar, context="", hook="ai", closing="ai"):
+HOOK_MAPS = {
+    "permapod": {
+        "hook_ai": "ai",
+        "hook_1": "Idle capital is a missed opportunity.",
+        "hook_2": "Stablecoins deserve better utility.",
+        "hook_3": "The APY matters. The source matters more.",
+        "hook_4": "Productive capital builds stronger markets.",
+        "hook_5": "Capital should work, not wait.",
+        "hook_6": "Lending infrastructure matters.",
+    },
+    "nawa": {
+        "hook_ai": "ai",
+        "hook_1": "Yield should be traceable before it is attractive.",
+        "hook_2": "Access is not enough for ethical capital.",
+        "hook_3": "Shariah compliance is not a feature toggle.",
+        "hook_4": "Stablecoins can do more without compromising structure.",
+        "hook_5": "Not every RWA is suitable for ethical capital.",
+        "hook_6": "The investor was never missing. The structure was.",
+    },
+}
+
+
+CLOSING_MAPS = {
+    "permapod": {
+        "closing_ai": "ai",
+        "closing_1": "That is the market Permapod is building.",
+        "closing_2": "Capital should be productive.",
+        "closing_3": "Onchain lending is only getting started.",
+        "closing_4": "Stablecoins deserve better markets.",
+        "closing_5": "Permapod is building that layer on ZIGChain.",
+    },
+    "nawa": {
+        "closing_ai": "ai",
+        "closing_1": "That is the structure Nawa was built around.",
+        "closing_2": "Ethical capital needs yield built the right way.",
+        "closing_3": "Nawa brings that structure onchain.",
+        "closing_4": "Deposit into the Nawa USDC Vault: nawa.finance",
+        "closing_5": "Put your USDC to work through Nawa: nawa.finance",
+    },
+}
+
+
+def brand_name(brand):
+    return BRAND_NAMES.get(brand, BRAND_NAMES["permapod"])
+
+
+def get_weekly_cadence(brand):
+    return WEEKLY_CADENCE.get(brand, WEEKLY_CADENCE["permapod"])
+
+
+def get_hook_map(brand):
+    return HOOK_MAPS.get(brand, HOOK_MAPS["permapod"])
+
+
+def get_closing_map(brand):
+    return CLOSING_MAPS.get(brand, CLOSING_MAPS["permapod"])
+
+
+def _voice(brand, voice):
+    return VOICE_INSTRUCTIONS.get(brand, VOICE_INSTRUCTIONS["permapod"])[voice]
+
+
+def _pillar(brand, pillar):
+    return PILLAR_INSTRUCTIONS.get(brand, PILLAR_INSTRUCTIONS["permapod"])[pillar]
+
+
+def _bucket(brand, bucket):
+    return BUCKET_ANGLES.get(brand, BUCKET_ANGLES["permapod"])[bucket]
+
+
+def _brand_format_rules(brand):
+    if brand == "nawa":
+        return (
+            "No hashtags unless specifically requested. No quotes around output. No em dashes. "
+            "Never say guaranteed, risk-free, safe returns, easy money, passive income, halal yield farming, "
+            "yield farming made halal, game changer, revolutionary, insane APY, or massive gains. "
+            "Never imply all RWAs are ethical or that yield has no risk. Do not use Quranic or religious references "
+            "unless specifically requested. Keep it calm, premium, human, and clear."
+        )
+    return (
+        "No hashtags. No quotes around output. No em dashes. No 'DeFi' (use Defi/defi). "
+        "No 'on-chain' (use onchain). Never imply guaranteed or risk-free yield."
+    )
+
+
+def build_post_prompt(voice, pillar, context="", hook="ai", closing="ai", brand="permapod"):
+    name = brand_name(brand)
     hook_line = (
-        f'Opening hook: start Tweet 1 and Tweet 2 each with a DIFFERENT approach, '
-        f'but Tweet 1 must open with exactly this line: "{hook}"'
+        f'Opening hook: start Tweet 1 with exactly this line: "{hook}". Tweet 2 should use a different opening.'
         if hook != "ai"
-        else "Opening hook: write a fresh, original opening line for each tweet. Do NOT copy from the hooks library word for word."
+        else "Opening hook: write a fresh, original opening line for each tweet. Do not copy the hooks library word for word."
     )
     closing_line = (
-        f'Closing line: end Tweet 1 with exactly this line: "{closing}" — Tweet 2 should use a different closer.'
+        f'Closing line: end Tweet 1 with exactly this line: "{closing}". Tweet 2 should use a different closer.'
         if closing != "ai"
-        else "Closing line: write a fresh, original closing line for each tweet. Do NOT copy from the closers library word for word."
+        else "Closing line: write a fresh, original closing line for each tweet. Do not copy the closers library word for word."
     )
     parts = [
-        "Write exactly 2 different X (Twitter) posts for Permapod.",
+        f"Write exactly 2 different X (Twitter) posts for {name}.",
         "Label them Tweet 1: and Tweet 2: with a blank line between them.",
         "Each tweet must be distinct in angle, rhythm, or framing. Both must fit within 280 characters.",
         "",
-        VOICE_INSTRUCTIONS[voice],
+        _voice(brand, voice),
         "",
-        PILLAR_INSTRUCTIONS[pillar],
+        _pillar(brand, pillar),
         "",
         hook_line,
         closing_line,
     ]
     if context:
         parts.append(f"\nAdditional context to incorporate: {context}")
-    parts.append(
-        "\nFormat: max 280 characters each. No hashtags. No quotes around output. "
-        "No em dashes. No 'DeFi' (use Defi/defi). No 'on-chain' (use onchain). "
-        "Output only the two labeled tweets, nothing else."
-    )
+    parts.append(f"\nFormat rules: {_brand_format_rules(brand)} Output only the two labeled tweets, nothing else.")
     return "\n".join(parts)
 
 
-def build_reply_prompt(voice, bucket, tweet="", context=""):
+def build_reply_prompt(voice, bucket, tweet="", context="", brand="permapod"):
+    name = brand_name(brand)
     parts = [
-        "Write exactly 2 different replies to this tweet for the Permapod X account.",
+        f"Write exactly 2 different replies to this tweet for the {name} X account.",
         "Label them Tweet 1: and Tweet 2: with a blank line between them.",
         "",
-        f'Tweet being replied to: "{tweet or "(no tweet provided — write a general on-brand reply)"}"',
+        f'Tweet being replied to: "{tweet or "(no tweet provided. Write a general on-brand reply)"}"',
         "",
-        VOICE_INSTRUCTIONS[voice],
+        _voice(brand, voice),
         "",
-        BUCKET_ANGLES[bucket],
+        _bucket(brand, bucket),
     ]
     if context:
         parts.append(f"\nAdditional context: {context}")
-    parts.append(
-        "\nFormat: 1-3 short lines each. Sharp, adds value. No hashtags. "
-        "No em dashes. No 'DeFi'. No 'on-chain'. Output only the two labeled replies, nothing else."
-    )
+    parts.append(f"\nFormat: 1-3 short lines each. Sharp and adds value. {_brand_format_rules(brand)} Output only the two labeled replies, nothing else.")
     return "\n".join(parts)
 
 
-def build_repost_prompt(voice, pillar, tweet="", context=""):
+def build_repost_prompt(voice, pillar, tweet="", context="", brand="permapod"):
+    name = brand_name(brand)
     parts = [
-        "Write exactly 2 different quote-repost comments for the Permapod X account.",
+        f"Write exactly 2 different quote-repost comments for the {name} X account.",
         "Label them Tweet 1: and Tweet 2: with a blank line between them.",
         "",
         f'Tweet being quote-reposted: "{tweet or "(no tweet provided)"}"',
         "",
-        VOICE_INSTRUCTIONS[voice],
+        _voice(brand, voice),
         "",
-        f"Content angle: {PILLAR_INSTRUCTIONS[pillar]}",
+        f"Content angle: {_pillar(brand, pillar)}",
     ]
     if context:
         parts.append(f"\nSpecific take to incorporate: {context}")
-    parts.append(
-        "\nFormat: 1-2 lines each. Sharp, opinionated. No hashtags. "
-        "No em dashes. No 'DeFi'. No 'on-chain'. Output only the two labeled comments, nothing else."
-    )
+    parts.append(f"\nFormat: 1-2 lines each. Sharp and interpretive. {_brand_format_rules(brand)} Output only the two labeled comments, nothing else.")
     return "\n".join(parts)
 
 
-def build_trend_prompt(voice, pillar, trend="", output_type="tweet", context=""):
+def build_trend_prompt(voice, pillar, trend="", output_type="tweet", context="", brand="permapod"):
+    name = brand_name(brand)
     out_map = {
-        "tweet":   "original tweet",
-        "reply":   "reply",
-        "repost":  "quote-repost comment",
+        "tweet": "original tweet",
+        "reply": "reply",
+        "repost": "quote-repost comment",
     }
     out_label = out_map.get(output_type, "tweet")
     parts = [
         f'Trending topic or tweet: "{trend or "(no trend provided)"}"',
         "",
-        f"Generate exactly 2 different Permapod {out_label}s that connect this trend to Permapod's narrative.",
+        f"Generate exactly 2 different {name} {out_label}s that connect this trend to {name}'s narrative.",
         "Label them Tweet 1: and Tweet 2: with a blank line between them.",
         "",
-        VOICE_INSTRUCTIONS[voice],
+        _voice(brand, voice),
         "",
-        f"Content angle: {PILLAR_INSTRUCTIONS[pillar]}",
+        f"Content angle: {_pillar(brand, pillar)}",
     ]
     if context:
         parts.append(f"\nExtra context: {context}")
-    parts.append(
-        "\nFormat: max 280 characters each. No hashtags. "
-        "No em dashes. No 'DeFi'. No 'on-chain'. Output only the two labeled posts, nothing else."
-    )
+    parts.append(f"\nFormat: max 280 characters each. {_brand_format_rules(brand)} Output only the two labeled posts, nothing else.")
     return "\n".join(parts)

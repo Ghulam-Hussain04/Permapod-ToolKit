@@ -41,6 +41,7 @@ def init_db():
     create_sql = """
     CREATE TABLE IF NOT EXISTS approved_tweets (
         id              SERIAL PRIMARY KEY,
+        brand           TEXT            NOT NULL DEFAULT 'permapod',
         user_id         BIGINT          NOT NULL,
         username        TEXT,
 
@@ -73,10 +74,17 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_approved_tweets_status  ON approved_tweets(status);
     CREATE INDEX IF NOT EXISTS idx_approved_tweets_user    ON approved_tweets(user_id);
     """
+    migrate_sql = """
+    ALTER TABLE approved_tweets
+    ADD COLUMN IF NOT EXISTS brand TEXT NOT NULL DEFAULT 'permapod';
+
+    CREATE INDEX IF NOT EXISTS idx_approved_tweets_brand ON approved_tweets(brand);
+    """
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(create_sql)
+                cur.execute(migrate_sql)
             conn.commit()
         logger.info("✅ DB: approved_tweets table ready.")
     except Exception as e:
@@ -87,6 +95,7 @@ def init_db():
 # ── Insert ────────────────────────────────────────
 
 def save_approved_tweet(
+    brand:        str,
     user_id:      int,
     username:     Optional[str],
     flow:         str,
@@ -108,11 +117,11 @@ def save_approved_tweet(
     """
     sql = """
     INSERT INTO approved_tweets (
-        user_id, username,
+        brand, user_id, username,
         flow, voice, pillar, bucket, hook, closing, output_type,
         tweet_number, tweet_text, context, source_tweet, trend_input
     ) VALUES (
-        %(user_id)s, %(username)s,
+        %(brand)s, %(user_id)s, %(username)s,
         %(flow)s, %(voice)s, %(pillar)s, %(bucket)s, %(hook)s, %(closing)s, %(output_type)s,
         %(tweet_number)s, %(tweet_text)s, %(context)s, %(source_tweet)s, %(trend_input)s
     )
@@ -120,6 +129,7 @@ def save_approved_tweet(
     """
     params = dict(
         user_id=user_id,
+        brand=brand or "permapod",
         username=username,
         flow=flow,
         voice=voice,
@@ -150,6 +160,7 @@ def save_approved_tweet(
 # ── Query: fetch examples for prompt injection ────
 
 def get_approved_examples(
+    brand:  str = "permapod",
     voice:  Optional[str] = None,
     pillar: Optional[str] = None,
     limit:  int = 3,
@@ -159,8 +170,8 @@ def get_approved_examples(
     Used to inject real approved examples into the generation prompt.
     Returns a list of tweet_text strings.
     """
-    conditions = ["status = 'approved'"]
-    params: dict = {}
+    conditions = ["status = 'approved'", "brand = %(brand)s"]
+    params: dict = {"brand": brand or "permapod"}
 
     if voice:
         conditions.append("voice = %(voice)s")
@@ -192,21 +203,22 @@ def get_approved_examples(
 
 # ── Query: recent history for a user ─────────────
 
-def get_user_history(user_id: int, limit: int = 5) -> list[dict]:
+def get_user_history(user_id: int, brand: str = "permapod", limit: int = 5) -> list[dict]:
     """
     Fetch recent approved tweets for a specific user.
     """
     sql = """
-    SELECT id, flow, voice, pillar, tweet_text, approved_at, status
+    SELECT id, brand, flow, voice, pillar, tweet_text, approved_at, status
     FROM approved_tweets
     WHERE user_id = %(user_id)s
+      AND brand = %(brand)s
     ORDER BY approved_at DESC
     LIMIT %(limit)s;
     """
     try:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, {"user_id": user_id, "limit": limit})
+                cur.execute(sql, {"user_id": user_id, "brand": brand or "permapod", "limit": limit})
                 return cur.fetchall()
     except Exception as e:
         logger.error(f"❌ DB history error: {e}")
@@ -215,19 +227,25 @@ def get_user_history(user_id: int, limit: int = 5) -> list[dict]:
 
 # ── Query: total approved count ───────────────────
 
-def get_total_approved() -> int:
+def get_total_approved(brand: Optional[str] = None) -> int:
     """Return total number of approved tweets across all users."""
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM approved_tweets WHERE status = 'approved';")
+                if brand:
+                    cur.execute(
+                        "SELECT COUNT(*) FROM approved_tweets WHERE status = 'approved' AND brand = %s;",
+                        (brand,),
+                    )
+                else:
+                    cur.execute("SELECT COUNT(*) FROM approved_tweets WHERE status = 'approved';")
                 return cur.fetchone()[0]
     except Exception as e:
         logger.error(f"❌ DB count error: {e}")
         return 0
 
 
-def get_content_stats() -> dict:
+def get_content_stats(brand: Optional[str] = None) -> dict:
     """
     Return aggregate stats for approved tweets.
     Used by the /stats command to show content balance over time.
@@ -235,64 +253,80 @@ def get_content_stats() -> dict:
     stats = {
         "total": 0,
         "by_voice": {},
+        "by_brand": {},
         "by_flow": {},
         "by_pillar": {},
         "by_time": {"today": 0, "week": 0, "month": 0},
         "tweet_preference": {},
     }
 
+    brand_filter = "AND brand = %(brand)s" if brand else ""
+    params = {"brand": brand} if brand else {}
+
     queries = {
         "total": """
             SELECT COUNT(*) AS count
             FROM approved_tweets
-            WHERE status = 'approved';
+            WHERE status = 'approved'
+            {brand_filter};
+        """.format(brand_filter=brand_filter),
+        "by_brand": """
+            SELECT COALESCE(brand, 'permapod') AS key, COUNT(*) AS count
+            FROM approved_tweets
+            WHERE status = 'approved'
+            GROUP BY COALESCE(brand, 'permapod');
         """,
         "by_voice": """
             SELECT COALESCE(voice, 'unknown') AS key, COUNT(*) AS count
             FROM approved_tweets
             WHERE status = 'approved'
+            {brand_filter}
             GROUP BY COALESCE(voice, 'unknown');
-        """,
+        """.format(brand_filter=brand_filter),
         "by_flow": """
             SELECT COALESCE(flow, 'unknown') AS key, COUNT(*) AS count
             FROM approved_tweets
             WHERE status = 'approved'
+            {brand_filter}
             GROUP BY COALESCE(flow, 'unknown');
-        """,
+        """.format(brand_filter=brand_filter),
         "by_pillar": """
             SELECT COALESCE(pillar, 'unknown') AS key, COUNT(*) AS count
             FROM approved_tweets
             WHERE status = 'approved'
+            {brand_filter}
             GROUP BY COALESCE(pillar, 'unknown');
-        """,
+        """.format(brand_filter=brand_filter),
         "by_time": """
             SELECT
                 COUNT(*) FILTER (WHERE approved_at >= CURRENT_DATE) AS today,
                 COUNT(*) FILTER (WHERE approved_at >= DATE_TRUNC('week', CURRENT_DATE)) AS week,
                 COUNT(*) FILTER (WHERE approved_at >= DATE_TRUNC('month', CURRENT_DATE)) AS month
             FROM approved_tweets
-            WHERE status = 'approved';
-        """,
+            WHERE status = 'approved'
+            {brand_filter};
+        """.format(brand_filter=brand_filter),
         "tweet_preference": """
             SELECT tweet_number AS key, COUNT(*) AS count
             FROM approved_tweets
             WHERE status = 'approved'
+              {brand_filter}
               AND tweet_number IN (1, 2)
             GROUP BY tweet_number;
-        """,
+        """.format(brand_filter=brand_filter),
     }
 
     try:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(queries["total"])
+                cur.execute(queries["total"], params)
                 stats["total"] = cur.fetchone()["count"]
 
-                for section in ("by_voice", "by_flow", "by_pillar", "tweet_preference"):
-                    cur.execute(queries[section])
+                for section in ("by_brand", "by_voice", "by_flow", "by_pillar", "tweet_preference"):
+                    cur.execute(queries[section], params if section != "by_brand" else {})
                     stats[section] = {str(row["key"]): row["count"] for row in cur.fetchall()}
 
-                cur.execute(queries["by_time"])
+                cur.execute(queries["by_time"], params)
                 row = cur.fetchone()
                 stats["by_time"] = {
                     "today": row["today"],

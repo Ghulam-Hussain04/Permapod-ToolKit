@@ -7,6 +7,7 @@
 _sessions = {}
 
 DEFAULT = {
+    "brand":       None,    # selected brand: permapod|nawa
     "flow":        None,    # current flow: post|reply|repost|trend
     "step":        None,    # current step within the flow
     "voice":       "protocol",
@@ -77,5 +78,4 @@ def nav_pop(user_id: int):
 def nav_clear(user_id: int):
     s = get(user_id)
     s["nav_stack"] = []
-
 
