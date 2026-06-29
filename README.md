@@ -38,7 +38,6 @@ Each brand has its own:
 - voice options
 - pillar options
 - reply buckets
-- hooks and closers
 - weekly cadence
 - approved tweet history
 - semantic example retrieval
@@ -86,7 +85,7 @@ When generating content:
 1. The bot searches ChromaDB for relevant approved tweets from the selected brand.
 2. If ChromaDB is unavailable, it falls back to PostgreSQL examples for that brand.
 3. Matching examples are injected into the system prompt.
-4. OpenAI generates new content using those examples as style references.
+4. OpenAI generates new content (including autonomous hooks and closing lines) using those examples as style references.
 
 This creates a feedback loop:
 

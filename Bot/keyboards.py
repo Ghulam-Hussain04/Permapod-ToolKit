@@ -62,46 +62,7 @@ BUCKET_OPTIONS = {
 }
 
 
-HOOK_OPTIONS = {
-    "permapod": [
-        ("✨ AI picks freely", "ai"),
-        ("Idle capital is a missed opportunity.", "1"),
-        ("Stablecoins deserve better utility.", "2"),
-        ("The APY matters. The source matters more.", "3"),
-        ("Productive capital builds stronger markets.", "4"),
-        ("Capital should work, not wait.", "5"),
-        ("Lending infrastructure matters.", "6"),
-    ],
-    "nawa": [
-        ("✨ AI picks freely", "ai"),
-        ("Yield should be traceable before it is attractive.", "1"),
-        ("Access is not enough for ethical capital.", "2"),
-        ("Shariah compliance is not a feature toggle.", "3"),
-        ("Stablecoins can do more without compromising structure.", "4"),
-        ("Not every RWA is suitable for ethical capital.", "5"),
-        ("The investor was never missing. The structure was.", "6"),
-    ],
-}
 
-
-CLOSING_OPTIONS = {
-    "permapod": [
-        ("✨ AI picks freely", "ai"),
-        ("That is the market Permapod is building.", "1"),
-        ("Capital should be productive.", "2"),
-        ("Onchain lending is only getting started.", "3"),
-        ("Stablecoins deserve better markets.", "4"),
-        ("Permapod is building that layer on ZIGChain.", "5"),
-    ],
-    "nawa": [
-        ("✨ AI picks freely", "ai"),
-        ("That is the structure Nawa was built around.", "1"),
-        ("Ethical capital needs yield built the right way.", "2"),
-        ("Nawa brings that structure onchain.", "3"),
-        ("Deposit into the Nawa USDC Vault: nawa.finance", "4"),
-        ("Put your USDC to work through Nawa: nawa.finance", "5"),
-    ],
-}
 
 
 CADENCE_OPTIONS = {
@@ -171,12 +132,7 @@ def bucket_keyboard(brand="permapod"):
     return InlineKeyboardMarkup(_rows(BUCKET_OPTIONS.get(brand, BUCKET_OPTIONS["permapod"]), "bucket_", per_row=1) + [_back()])
 
 
-def hook_keyboard(brand="permapod"):
-    return InlineKeyboardMarkup(_rows(HOOK_OPTIONS.get(brand, HOOK_OPTIONS["permapod"]), "hook_", per_row=1) + [_back()])
 
-
-def closing_keyboard(brand="permapod"):
-    return InlineKeyboardMarkup(_rows(CLOSING_OPTIONS.get(brand, CLOSING_OPTIONS["permapod"]), "closing_", per_row=1) + [_back()])
 
 
 def trend_mode_keyboard():

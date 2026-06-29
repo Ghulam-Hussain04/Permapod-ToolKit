@@ -162,46 +162,7 @@ WEEKLY_CADENCE = {
 }
 
 
-HOOK_MAPS = {
-    "permapod": {
-        "hook_ai": "ai",
-        "hook_1": "Idle capital is a missed opportunity.",
-        "hook_2": "Stablecoins deserve better utility.",
-        "hook_3": "The APY matters. The source matters more.",
-        "hook_4": "Productive capital builds stronger markets.",
-        "hook_5": "Capital should work, not wait.",
-        "hook_6": "Lending infrastructure matters.",
-    },
-    "nawa": {
-        "hook_ai": "ai",
-        "hook_1": "Yield should be traceable before it is attractive.",
-        "hook_2": "Access is not enough for ethical capital.",
-        "hook_3": "Shariah compliance is not a feature toggle.",
-        "hook_4": "Stablecoins can do more without compromising structure.",
-        "hook_5": "Not every RWA is suitable for ethical capital.",
-        "hook_6": "The investor was never missing. The structure was.",
-    },
-}
 
-
-CLOSING_MAPS = {
-    "permapod": {
-        "closing_ai": "ai",
-        "closing_1": "That is the market Permapod is building.",
-        "closing_2": "Capital should be productive.",
-        "closing_3": "Onchain lending is only getting started.",
-        "closing_4": "Stablecoins deserve better markets.",
-        "closing_5": "Permapod is building that layer on ZIGChain.",
-    },
-    "nawa": {
-        "closing_ai": "ai",
-        "closing_1": "That is the structure Nawa was built around.",
-        "closing_2": "Ethical capital needs yield built the right way.",
-        "closing_3": "Nawa brings that structure onchain.",
-        "closing_4": "Deposit into the Nawa USDC Vault: nawa.finance",
-        "closing_5": "Put your USDC to work through Nawa: nawa.finance",
-    },
-}
 
 
 def brand_name(brand):
@@ -212,12 +173,7 @@ def get_weekly_cadence(brand):
     return WEEKLY_CADENCE.get(brand, WEEKLY_CADENCE["permapod"])
 
 
-def get_hook_map(brand):
-    return HOOK_MAPS.get(brand, HOOK_MAPS["permapod"])
 
-
-def get_closing_map(brand):
-    return CLOSING_MAPS.get(brand, CLOSING_MAPS["permapod"])
 
 
 def _voice(brand, voice):
@@ -247,18 +203,10 @@ def _brand_format_rules(brand):
     )
 
 
-def build_post_prompt(voice, pillar, context="", hook="ai", closing="ai", brand="permapod"):
+def build_post_prompt(voice, pillar, context="", brand="permapod"):
     name = brand_name(brand)
-    hook_line = (
-        f'Opening hook: start Tweet 1 with exactly this line: "{hook}". Tweet 2 should use a different opening.'
-        if hook != "ai"
-        else "Opening hook: write a fresh, original opening line for each tweet. Do not copy the hooks library word for word."
-    )
-    closing_line = (
-        f'Closing line: end Tweet 1 with exactly this line: "{closing}". Tweet 2 should use a different closer.'
-        if closing != "ai"
-        else "Closing line: write a fresh, original closing line for each tweet. Do not copy the closers library word for word."
-    )
+    hook_line = "Opening hook: write a fresh, original opening line for each tweet. Do not use predefined hooks."
+    closing_line = "Closing line: write a fresh, original closing line for each tweet. Do not use predefined closers."
     parts = [
         f"Write exactly 2 different X (Twitter) posts for {name}.",
         "Label them Tweet 1: and Tweet 2: with a blank line between them.",

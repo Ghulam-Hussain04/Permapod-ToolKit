@@ -1,4 +1,4 @@
-﻿# ===============================================
+# ===============================================
 # handlers.py - All flow and callback handlers combined
 # ----------------------------------------------------------------------
 
@@ -17,8 +17,6 @@ from prompts import (
     build_repost_prompt, build_trend_prompt,
     brand_name,
     get_weekly_cadence,
-    get_hook_map,
-    get_closing_map,
 )
 from ai_client import generate_text, generate_vision
 from db import (
@@ -743,14 +741,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         flow, step = s.get("flow"), s.get("step")
         
         if flow == "post":
-            # Reverse lookup for the hook map
-            rev_hook = {v: k for k, v in get_hook_map(brand).items()}
-            hook_key = rev_hook.get(s.get("hook"), "hook_ai")
-            
             if step == "pillar":  data = "flow_post"
-            elif step == "hook":  data = f"post_voice_{s.get('voice')}"
-            elif step == "closing": data = f"post_pillar_{s.get('pillar')}"
-            elif step == "context": data = hook_key
+            elif step == "context": data = f"post_pillar_{s.get('pillar')}"
             else: data = "back_menu"
             
         elif flow == "reply":
@@ -782,7 +774,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if data == "flow_post":
         session.set_flow(uid, "post", "voice")
         await query.edit_message_text(
-            "✏️ *New Post - Step 1/5*\n\nChoose brand voice:",
+            "✏️ *New Post - Step 1/3*\n\nChoose brand voice:",
             reply_markup=kb.voice_keyboard("post_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -848,29 +840,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         v = data.replace("post_voice_", "")
         session.update(uid, voice=v, flow="post", step="pillar")
         await query.edit_message_text(
-            "✏️ *New Post - Step 2/5*\n\nChoose content pillar:",
+            "✏️ *New Post - Step 2/3*\n\nChoose content pillar:",
             reply_markup=kb.pillar_keyboard("post_", brand), parse_mode=ParseMode.MARKDOWN,
         )
 
     elif data.startswith("post_pillar_"):
         p = data.replace("post_pillar_", "")
-        session.update(uid, pillar=p, step="hook")
+        session.update(uid, pillar=p, step="context")
         await query.edit_message_text(
-            "✏️ *New Post - Step 3/5*\n\nChoose opening hook:",
-            reply_markup=kb.hook_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
-        )
-
-    elif data.startswith("hook_"):
-        session.update(uid, hook=get_hook_map(brand).get(data, "ai"), step="closing")
-        await query.edit_message_text(
-            "✏️ *New Post - Step 4/5*\n\nChoose closing line:",
-            reply_markup=kb.closing_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
-        )
-
-    elif data.startswith("closing_"):
-        session.update(uid, closing=get_closing_map(brand).get(data, "ai"), step="context")
-        await query.edit_message_text(
-            "✏️ *New Post - Step 5/5*\n\nAny additional context? (optional)\n\nType it or skip:",
+            "✏️ *New Post - Step 3/3*\n\nAny additional context? (optional)\n\nType it or skip:",
             reply_markup=kb.skip_keyboard("skip_post_context"), parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -878,7 +856,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         session.update(uid, context="")
         await query.edit_message_text("⏳ Generating 2 tweet options...")
         result = await generate_text(
-            build_post_prompt(s["voice"], s["pillar"], "", s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+            build_post_prompt(s["voice"], s["pillar"], "", brand=s.get("brand") or "permapod"),
             system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
@@ -1025,10 +1003,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         cadence = get_weekly_cadence(brand)
         if day in cadence:
             label, voice, pillar = cadence[day]
-            session.update(uid, voice=voice, pillar=pillar, flow="post", step="hook")
+            session.update(uid, voice=voice, pillar=pillar, flow="post", step="context")
             await query.edit_message_text(
-                f"📅 *{label}* - voice and pillar set!\n\nNow choose opening hook:",
-                reply_markup=kb.hook_keyboard(brand), parse_mode=ParseMode.MARKDOWN,
+                f"📅 *{label}* - voice and pillar set!\n\nAny additional context? (optional)\n\nType it or skip:",
+                reply_markup=kb.skip_keyboard("skip_post_context"), parse_mode=ParseMode.MARKDOWN,
             )
 
     # -- REGENERATE --
@@ -1038,7 +1016,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("⏳ Regenerating 2 options...")
         if flow == "post":
             result = await generate_text(
-                build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+                build_post_prompt(s["voice"], s["pillar"], s["context"], brand=s.get("brand") or "permapod"),
                 system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
             )
         elif flow == "reply":
@@ -1086,7 +1064,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text("⏳ Generating 2 tweet options...")
         s = session.get(uid)
         result = await generate_text(
-            build_post_prompt(s["voice"], s["pillar"], s["context"], s["hook"], s["closing"], brand=s.get("brand") or "permapod"),
+            build_post_prompt(s["voice"], s["pillar"], s["context"], brand=s.get("brand") or "permapod"),
             system=_build_dynamic_system_prompt(s.get("brand") or "permapod", s.get("voice"), s.get("pillar")),
         )
         session.update(uid, step="done", last_result=result)
